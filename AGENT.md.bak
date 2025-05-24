@@ -1,7 +1,7 @@
 # Coloring Book App - Agent Instructions
 
 ## Product Overview
-**Vision**: Turn any photo into a printable, line-art colouring-book page.
+**Vision**: Turn any child photo into a printable, line-art colouring-book page in < 60 seconds.
 
 **Target Users**: Parents of kids 3-10 years old, Teachers, Party planners
 
@@ -11,12 +11,14 @@
 - **Frontend**: Next.js 14 (React 18, TypeScript)
 - **Styling**: Tailwind CSS + shadcn/ui
 - **Auth**: Clerk (MFA, social logins)
-- **File Storage**: Supabase Storage
-- **Backend**: Next.js API routes
-- **AI**: OpenAI (DALL-E 3)
+- **File Storage**: Supabase
+- **Backend**: Next.js API routes + Fastify
+- **Queue**: BullMQ (Redis)
+- **AI**: Sourcegraph Amp (OpenAI/DALL-E, SDXL)
 - **Database**: Supabase (Postgres + RLS)
 - **Payments**: Stripe + Stripe Radar
-- **Hosting**: Local development (production hosting TBD)
+- **Hosting**: Vercel + AWS Lambda@Edge
+- **IaC**: Terraform + GitHub Actions
 
 ## Key Commands
 ```bash
@@ -70,9 +72,9 @@ lib/                  # Utilities & configs
 7. History dashboard
 
 ## Implementation Phases
-- **Phase 0** – Setup: Repo, environment configuration
-- **Phase 1** – Auth & Upload: Clerk, photo drop-zone, Supabase Storage
-- **Phase 2** – AI pipeline: OpenAI DALL-E 3 generation, return PNG
+- **Phase 0** – Setup: Repo, CI/CD, Terraform skeleton
+- **Phase 1** – Auth & Upload: Clerk, photo drop-zone, S3 plumbing
+- **Phase 2** – Amp pipeline: Prompt builder, Redis queue, Amp API, return PNG
 - **Phase 3** – Preview UI: Live progress, difficulty slider
 - **Phase 4** – Payments: Stripe Checkout, webhook to DB
 - **Phase 5** – PDF & history: pdf-kit concat, user dashboard
@@ -117,8 +119,8 @@ export default React.memo(ColoringPreview);
 - JWT from Clerk verified in middleware
 - RBAC in Supabase policies
 - helmet for headers, rate-limit 100 req/min/IP
-- Stateless API
-- Signed Supabase URLs, 1h TTL
+- Stateless API; Redis cluster; S3 lifecycle rules
+- Signed CloudFront URLs, 1h TTL
 - Map 5xx to generic "Something went wrong"
 - OpenTelemetry traces → Grafana Cloud
 
@@ -131,11 +133,11 @@ export default React.memo(ColoringPreview);
 - [x] Fastify plugin gates every /api/*
 - [x] RBAC roles in Supabase; admin-only delete
 - [x] Supabase RLS, no raw SQL
-- [x] HTTPS in production
+- [x] Vercel HTTPS, AWS WAF for Lambda
 - [x] next.config.js forces https in prod
 - [x] File upload: image/png|jpeg, ≤10 MB, clamav scan
 - [x] Stripe Radar fraud prevention
-- [x] DDOS protection: rate limiting
+- [x] DDOS protection: rate limiting + AWS WAF
 
 ## Data & Privacy
 - Original uploads: encrypted, deleted after 24h
@@ -163,13 +165,14 @@ Component.stories.tsx
 ## Key Dependencies
 ```json
 {
-  "@clerk/nextjs": "^6.x",
-  "@supabase/supabase-js": "^2.x", 
-  "openai": "^4.x",
-  "stripe": "^18.x",
+  "@clerk/nextjs": "^5.x",
+  "@supabase/supabase-js": "^2.x",
+  "stripe": "^14.x",
+  "bullmq": "^5.x",
   "zod": "^3.x",
+  "zustand": "^4.x",
+  "@tanstack/react-query": "^5.x",
   "tailwindcss": "^3.x",
-  "@radix-ui/react-*": "^1.x",
-  "react-dropzone": "^14.x"
+  "@radix-ui/react-*": "^1.x"
 }
 ```

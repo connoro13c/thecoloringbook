@@ -3,19 +3,16 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY!,
-  {
-    apiVersion: '2025-04-30.basil',
-  }
-)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+  apiVersion: '2025-04-30.basil'
+})
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
 )
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +33,10 @@ export async function POST(request: NextRequest) {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
     } catch (err) {
       console.error('Webhook signature verification failed:', err)
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Invalid signature' },
+        { status: 400 }
+      )
     }
 
     switch (event.type) {
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true })
+
   } catch (error) {
     console.error('Webhook error:', error)
     return NextResponse.json(
@@ -69,9 +70,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleCheckoutSessionCompleted(
-  session: Stripe.Checkout.Session
-) {
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const jobId = session.metadata?.jobId
   const userId = session.metadata?.userId
 
@@ -84,9 +83,9 @@ async function handleCheckoutSessionCompleted(
     // Update job status to PAID
     const { error } = await supabase
       .from('jobs')
-      .update({
+      .update({ 
         status: 'PAID',
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq('id', jobId)
       .eq('user_id', userId)
@@ -96,14 +95,13 @@ async function handleCheckoutSessionCompleted(
     } else {
       console.log(`Job ${jobId} marked as PAID`)
     }
+
   } catch (error) {
     console.error('Error handling checkout session completed:', error)
   }
 }
 
-async function handlePaymentIntentSucceeded(
-  paymentIntent: Stripe.PaymentIntent
-) {
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const jobId = paymentIntent.metadata?.jobId
 
   if (!jobId) {
@@ -123,6 +121,6 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   }
 
   console.log(`Payment failed for job ${jobId}`)
-
+  
   // Could implement retry logic or user notification here
 }

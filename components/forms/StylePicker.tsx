@@ -70,12 +70,12 @@ export default function StylePicker({
                 className={`
                   flex flex-col items-center p-6 rounded-3xl border-2 cursor-pointer transition-all touch-target
                   ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary hover:bg-primary/5 hover:scale-105'}
-                  peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:shadow-lg peer-checked:scale-105
-                  peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2
+                  ${value === style.id ? 'border-primary bg-primary/10 shadow-lg scale-105' : 'border-gray-200'}
+                  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2
                   relative overflow-hidden group
                 `}
               >
-                <div className="absolute top-2 right-2 opacity-0 peer-checked:opacity-100 transition-opacity">
+                <div className={`absolute top-2 right-2 transition-opacity ${value === style.id ? 'opacity-100' : 'opacity-0'}`}>
                   <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-white text-sm">✓</span>
                   </div>

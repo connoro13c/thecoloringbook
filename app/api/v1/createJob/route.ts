@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
-import { addJob, type ColoringJobData } from '@/lib/queue';
 
 // Request validation schema
 const CreateJobSchema = z.object({
@@ -33,33 +31,44 @@ export async function POST(request: NextRequest) {
 
     const { imageUrls, scenePrompt, style, difficulty } = validation.data;
 
-    // Generate unique job ID
-    const jobId = uuidv4();
+    // Build prompt for the uploaded image
+    const basePrompt = scenePrompt || "Turn this photo into a coloring book page";
+    
+    // Call the generate API directly
+    const generateResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/v1/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers.get('Authorization') || '',
+      },
+      body: JSON.stringify({
+        prompt: basePrompt,
+        style,
+        difficulty,
+        inputUrl: imageUrls[0], // Use first uploaded image
+      }),
+    });
 
-    // Prepare job data
-    const jobData: ColoringJobData = {
-      jobId,
-      userId,
-      imageUrls,
-      scenePrompt,
-      style,
-      difficulty,
-    };
+    if (!generateResponse.ok) {
+      const error = await generateResponse.json();
+      throw new Error(error.error || 'Generation failed');
+    }
 
-    // Add job to queue
-    await addJob(jobData);
+    const result = await generateResponse.json();
 
-    console.log(`Created job ${jobId} for user ${userId}`);
+    console.log(`Generated coloring page for user ${userId}`);
 
     return NextResponse.json({
       success: true,
-      jobId,
-      message: 'Job created successfully',
+      jobId: result.jobId,
+      status: result.status,
+      imageUrl: result.outputUrl,
+      message: 'Coloring page generated successfully',
     });
   } catch (error) {
     console.error('Create job API error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: error instanceof Error ? error.message : 'Something went wrong' },
       { status: 500 }
     );
   }

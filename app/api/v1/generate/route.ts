@@ -16,15 +16,15 @@ const supabase = createClient(
 
 const generateSchema = z.object({
   prompt: z.string().min(1).max(500),
-  style: z.enum(['CLASSIC', 'MANGA', 'BOLD']),
+  style: z.enum(['classic', 'manga', 'bold']),
   difficulty: z.number().int().min(1).max(5),
   inputUrl: z.string().url().optional()
 })
 
 const stylePrompts = {
-  CLASSIC: 'classic cartoon coloring book style with simple, clean lines',
-  MANGA: 'manga-inspired anime coloring book style with dynamic lines',
-  BOLD: 'bold outline coloring book style with thick, prominent lines'
+  classic: 'classic cartoon coloring book style with simple, clean lines',
+  manga: 'manga-inspired anime coloring book style with dynamic lines',
+  bold: 'bold outline coloring book style with thick, prominent lines'
 }
 
 const difficultyModifiers = {

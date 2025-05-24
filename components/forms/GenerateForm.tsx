@@ -74,53 +74,53 @@ export function GenerateForm({ onSuccess }: GenerateFormProps) {
   }
 
   return (
-    <Card className=\"w-full max-w-2xl mx-auto\">
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle>Create Your Coloring Page</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)} className=\"space-y-6\">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* Prompt */}
-          <div className=\"space-y-2\">
-            <Label htmlFor=\"prompt\">
+          <div className="space-y-2">
+            <Label htmlFor="prompt">
               What would you like to create? *
             </Label>
             <Textarea
-              id=\"prompt\"
-              placeholder=\"A happy puppy playing in a garden with butterflies...\"
-              className=\"min-h-20\"
+              id="prompt"
+              placeholder="A happy puppy playing in a garden with butterflies..."
+              className="min-h-20"
               {...form.register('prompt')}
             />
             {form.formState.errors.prompt && (
-              <p className=\"text-sm text-red-600\">
+              <p className="text-sm text-red-600">
                 {form.formState.errors.prompt.message}
               </p>
             )}
           </div>
 
           {/* Style Selection */}
-          <div className=\"space-y-3\">
+          <div className="space-y-3">
             <Label>Choose Art Style *</Label>
             <RadioGroup
               value={form.watch('style')}
               onValueChange={(value) => form.setValue('style', value as Style)}
-              className=\"space-y-3\"
+              className="space-y-3"
             >
               {styleOptions.map((option) => (
-                <div key={option.value} className=\"flex items-start space-x-3\">
+                <div key={option.value} className="flex items-start space-x-3">
                   <RadioGroupItem
                     value={option.value}
                     id={option.value}
-                    className=\"mt-1\"
+                    className="mt-1"
                   />
-                  <div className=\"space-y-1\">
+                  <div className="space-y-1">
                     <Label
                       htmlFor={option.value}
-                      className=\"text-sm font-medium cursor-pointer\"
+                      className="text-sm font-medium cursor-pointer"
                     >
                       {option.label}
                     </Label>
-                    <p className=\"text-xs text-gray-600\">
+                    <p className="text-xs text-gray-600">
                       {option.description}
                     </p>
                   </div>
@@ -128,17 +128,17 @@ export function GenerateForm({ onSuccess }: GenerateFormProps) {
               ))}
             </RadioGroup>
             {form.formState.errors.style && (
-              <p className=\"text-sm text-red-600\">
+              <p className="text-sm text-red-600">
                 {form.formState.errors.style.message}
               </p>
             )}
           </div>
 
           {/* Difficulty Slider */}
-          <div className=\"space-y-3\">
-            <div className=\"flex justify-between items-center\">
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
               <Label>Difficulty Level</Label>
-              <span className=\"text-sm font-medium\">{difficulty[0]}/5</span>
+              <span className="text-sm font-medium">{difficulty[0]}/5</span>
             </div>
             <Slider
               value={difficulty}
@@ -146,9 +146,9 @@ export function GenerateForm({ onSuccess }: GenerateFormProps) {
               max={5}
               min={1}
               step={1}
-              className=\"w-full\"
+              className="w-full"
             />
-            <div className=\"flex justify-between text-xs text-gray-500\">
+            <div className="flex justify-between text-xs text-gray-500">
               <span>Simple</span>
               <span>Complex</span>
             </div>
@@ -156,13 +156,13 @@ export function GenerateForm({ onSuccess }: GenerateFormProps) {
 
           {/* Submit Button */}
           <Button
-            type=\"submit\"
-            className=\"w-full\"
+            type="submit"
+            className="w-full"
             disabled={generateMutation.isPending}
           >
             {generateMutation.isPending ? (
               <>
-                <Loader2 className=\"mr-2 h-4 w-4 animate-spin\" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Generating...
               </>
             ) : (
@@ -171,7 +171,7 @@ export function GenerateForm({ onSuccess }: GenerateFormProps) {
           </Button>
 
           {generateMutation.error && (
-            <div className=\"p-3 text-sm text-red-600 bg-red-50 rounded-md\">
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">
               Failed to generate coloring page. Please try again.
             </div>
           )}

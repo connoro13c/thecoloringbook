@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { uploadMultipleToBlob } from '@/lib/blob';
+import { StorageService } from '@/lib/storage';
 import { validateFiles } from '@/lib/validation';
 
 const validateAuth = async () => {
@@ -35,7 +35,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const uploadResults = await uploadMultipleToBlob(files, userId);
+    const uploadResults = await Promise.all(
+      files.map(async (file) => {
+        const timestamp = Date.now();
+        const filename = `${timestamp}-${file.name}`;
+        
+        const result = await StorageService.upload(
+          userId,
+          filename,
+          file,
+          { contentType: file.type }
+        );
+        
+        return {
+          url: result.url,
+          filename: filename,
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,

@@ -6,11 +6,7 @@ import PhotoUpload from '@/components/forms/PhotoUpload';
 import ScenePrompt from '@/components/forms/ScenePrompt';
 import StylePicker, { type StyleType } from '@/components/forms/StylePicker';
 import DifficultySlider from '@/components/forms/DifficultySlider';
-import JobProgress from '@/components/ui/JobProgress';
-import ImagePreview from '@/components/ui/ImagePreview';
-import { PaymentFlow } from '@/components/forms/PaymentFlow';
 import { Button } from '@/components/ui/button';
-import { useJobPolling } from '@/lib/hooks/useJobPolling';
 import Link from 'next/link';
 
 interface UploadResult {
@@ -32,20 +28,13 @@ export default function UploadPage() {
   const [style, setStyle] = useState<StyleType>('classic');
   const [difficulty, setDifficulty] = useState<number>(3);
 
-  // Job state
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [isCreatingJob, setIsCreatingJob] = useState(false);
-
-  // Job polling
-  const { job, error: jobError } = useJobPolling({
-    jobId: currentJobId,
-    onComplete: (completedJob) => {
-      console.log('Job completed:', completedJob);
-    },
-    onError: (error) => {
-      console.error('Job error:', error);
-    },
-  });
+  // Generation state
+  const [generatedImage, setGeneratedImage] = useState<{
+    jobId: string;
+    imageUrl: string;
+    status: 'completed' | 'processing' | 'failed';
+  } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
@@ -77,10 +66,10 @@ export default function UploadPage() {
     }
   };
 
-  const handleCreateJob = async () => {
+  const handleGenerate = async () => {
     if (uploadResults.length === 0) return;
 
-    setIsCreatingJob(true);
+    setIsGenerating(true);
     setUploadError('');
 
     try {
@@ -100,26 +89,28 @@ export default function UploadPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to create job');
+        throw new Error(result.error || 'Failed to generate coloring page');
       }
 
-      setCurrentJobId(result.jobId);
+      setGeneratedImage({
+        jobId: result.jobId,
+        imageUrl: result.imageUrl,
+        status: 'completed',
+      });
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to create job');
+      setUploadError(err instanceof Error ? err.message : 'Failed to generate coloring page');
     } finally {
-      setIsCreatingJob(false);
+      setIsGenerating(false);
     }
   };
 
   const handleRegenerate = async () => {
     if (uploadResults.length === 0) return;
     
-    // Reset current job and create new one
-    setCurrentJobId(null);
-    await handleCreateJob();
+    // Reset generated image and create new one
+    setGeneratedImage(null);
+    await handleGenerate();
   };
-
-  const isProcessing = isCreatingJob || Boolean(job && job.status !== 'completed' && job.status !== 'failed');
 
   return (
     <div className="min-h-screen bg-gradient-playful">
@@ -180,14 +171,14 @@ export default function UploadPage() {
                 
                 <PhotoUpload
                   onFilesSelect={setSelectedFiles}
-                  disabled={uploading || isProcessing}
+                  disabled={uploading || isGenerating}
                 />
 
                 {selectedFiles.length > 0 && (
                   <div className="flex justify-end">
                     <Button
                       onClick={handleUpload}
-                      disabled={uploading || isProcessing}
+                      disabled={uploading || isGenerating}
                       className="px-8"
                     >
                       {uploading ? 'Uploading...' : 'Upload Photos'}
@@ -211,7 +202,7 @@ export default function UploadPage() {
                     <ScenePrompt
                       value={scenePrompt}
                       onChange={setScenePrompt}
-                      disabled={isProcessing}
+                      disabled={isGenerating}
                     />
                   </div>
 
@@ -220,7 +211,7 @@ export default function UploadPage() {
                     <StylePicker
                       value={style}
                       onChange={setStyle}
-                      disabled={isProcessing}
+                      disabled={isGenerating}
                     />
                   </div>
 
@@ -229,20 +220,20 @@ export default function UploadPage() {
                     <DifficultySlider
                       value={difficulty}
                       onChange={setDifficulty}
-                      disabled={isProcessing}
+                      disabled={isGenerating}
                     />
                   </div>
 
                   {/* Generate Button */}
-                  {!currentJobId && (
+                  {!generatedImage && (
                     <div className="mt-8 pt-6 border-t">
                       <Button
-                        onClick={handleCreateJob}
-                        disabled={isCreatingJob || isProcessing}
+                        onClick={handleGenerate}
+                        disabled={isGenerating}
                         className="w-full py-3 text-lg"
                         size="lg"
                       >
-                        {isCreatingJob ? 'Creating Your Coloring Page...' : 'Generate Coloring Page'}
+                        {isGenerating ? 'Creating Your Coloring Page...' : 'Generate Coloring Page'}
                       </Button>
                     </div>
                   )}
@@ -256,14 +247,10 @@ export default function UploadPage() {
                 </div>
               )}
 
-              {jobError && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                  <p className="text-sm text-red-600">{jobError}</p>
-                </div>
-              )}
+
 
               {/* Upload Success */}
-              {uploadResults.length > 0 && !currentJobId && (
+              {uploadResults.length > 0 && !generatedImage && (
                 <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
                   <h3 className="text-lg font-medium text-green-800 mb-2">
                     Photos Uploaded Successfully!
@@ -283,40 +270,39 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Right Column - Progress and Preview */}
+          {/* Right Column - Preview */}
           <div className="space-y-6">
-            {/* Job Progress */}
-            {job && (
-              <JobProgress
-                job={job}
-                onRetry={handleRegenerate}
-              />
+            {/* Generated Image Preview */}
+            {generatedImage && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Your Coloring Page
+                </h3>
+                <div className="relative">
+                  <img
+                    src={generatedImage.imageUrl}
+                    alt="Generated coloring page"
+                    className="w-full rounded-lg border"
+                  />
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    onClick={handleRegenerate}
+                    disabled={isGenerating}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {isGenerating ? 'Generating...' : 'Regenerate'}
+                  </Button>
+                  <Button className="flex-1">
+                    Download PDF ($0.99)
+                  </Button>
+                </div>
+              </div>
             )}
 
-            {/* Image Preview */}
-            {job && (job.status === 'completed' || job.imageUrl) && (
-              <ImagePreview
-                imageUrl={job.imageUrl}
-                pdfUrl={job.pdfUrl}
-                onRegenerate={handleRegenerate}
-                isRegenerating={isCreatingJob}
-              />
-            )}
-
-            {/* Payment Flow */}
-            {job && job.status === 'completed' && (
-              <PaymentFlow
-                jobId={job.jobId}
-                jobStatus={job.status}
-                onPaymentSuccess={() => {
-                  // Handle payment success - refresh page or trigger download
-                  window.location.reload();
-                }}
-              />
-            )}
-
-            {/* Placeholder when no job */}
-            {!job && (
+            {/* Placeholder when no image */}
+            {!generatedImage && (
               <div className="bg-white rounded-lg border p-6">
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center">
