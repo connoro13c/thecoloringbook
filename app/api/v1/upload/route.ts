@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import { uploadMultipleToBlob } from '@/lib/blob';
+import { validateFiles } from '@/lib/validation';
+
+const validateAuth = async () => {
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+  return userId;
+};
+
+const parseFiles = async (request: NextRequest) => {
+  const formData = await request.formData();
+  const files = formData.getAll('files') as File[];
+  
+  if (!files || files.length === 0) {
+    throw new Error('No files provided');
+  }
+  
+  return files;
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await validateAuth();
+    const files = await parseFiles(request);
+
+    const validation = validateFiles(files);
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const uploadResults = await uploadMultipleToBlob(files, userId);
+
+    return NextResponse.json({
+      success: true,
+      files: uploadResults,
+    });
+  } catch (error) {
+    console.error('Upload API error:', error);
+    
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    if (error instanceof Error && error.message === 'No files provided') {
+      return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+    }
+    
+    return NextResponse.json(
+      { error: 'Something went wrong' },
+      { status: 500 }
+    );
+  }
+}

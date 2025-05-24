@@ -1,0 +1,178 @@
+# Coloring Book App - Agent Instructions
+
+## Product Overview
+**Vision**: Turn any child photo into a printable, line-art colouring-book page in < 60 seconds.
+
+**Target Users**: Parents of kids 3-10 years old, Teachers, Party planners
+
+**Core Problem**: Removes the pain of DIY photo-editing; gives parents instant, personalised activity pages.
+
+## Tech Stack
+- **Frontend**: Next.js 14 (React 18, TypeScript)
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Auth**: Clerk (MFA, social logins)
+- **File Storage**: Vercel Blob → S3
+- **Backend**: Next.js API routes + Fastify
+- **Queue**: BullMQ (Redis)
+- **AI**: Sourcegraph Amp (OpenAI/DALL-E, SDXL)
+- **Database**: Supabase (Postgres + RLS)
+- **Payments**: Stripe + Stripe Radar
+- **Hosting**: Vercel + AWS Lambda@Edge
+- **IaC**: Terraform + GitHub Actions
+
+## Key Commands
+```bash
+# Development
+npm run dev
+
+# Build & Type Check
+npm run build
+npm run type-check
+
+# Testing
+npm run test
+npm run test:e2e
+npm run test:coverage
+
+# Linting & Formatting
+npm run lint
+npm run format
+npm run lint:fix
+
+# Storybook
+npm run storybook
+```
+
+## Project Structure
+```
+app/                    # Next.js 14 app router
+├── api/v1/            # Versioned API routes
+├── (auth)/            # Auth route groups
+└── globals.css        # Global styles
+
+components/            # Atomic → composite pattern
+├── ui/               # shadcn/ui components
+├── forms/            # Form components
+└── layout/           # Layout components
+
+lib/                  # Utilities & configs
+├── utils.ts          # Utility functions
+├── auth.ts           # Clerk config
+├── db.ts             # Supabase client
+└── stripe.ts         # Stripe config
+```
+
+## Core Features
+1. Photo upload (1-3 JPG/PNG, ≤10 MB each)
+2. Scene prompt box
+3. Style picker – "Classic Cartoon", "Manga Lite", "Bold Outlines"
+4. Difficulty slider 1-5 (controls line density)
+5. Preview & regenerate ($0.50)
+6. One-click purchase & PDF download ($0.99)
+7. History dashboard
+
+## Implementation Phases
+- **Phase 0** – Setup: Repo, CI/CD, Terraform skeleton
+- **Phase 1** – Auth & Upload: Clerk, photo drop-zone, S3 plumbing
+- **Phase 2** – Amp pipeline: Prompt builder, Redis queue, Amp API, return PNG
+- **Phase 3** – Preview UI: Live progress, difficulty slider
+- **Phase 4** – Payments: Stripe Checkout, webhook to DB
+- **Phase 5** – PDF & history: pdf-kit concat, user dashboard
+- **Phase 6** – Hardening: Load test (k6), security pen-test, framerate audits
+- **Phase 7** – Launch: Prod env, runbook, status page
+
+## Code Standards
+
+### General
+- ESLint + Prettier, 4.4% max cyclomatic complexity
+- GitHub Flow – main, feature branches, squash merges, semantic commits
+- Unit ≥80% coverage, e2e on Chromium + Safari
+- Core Web Vitals ≥90; <200 KB JS first load
+- WCAG-AA accessibility, colour-contrast ≥4.5:1
+
+### Frontend Guidelines
+- Mobile-first, 2-column desktop, 44px touch targets
+- app/ router pages → thin wrappers
+- components/ atomic → composite pattern
+- Zustand for state; no global Redux
+- next/dynamic lazy load, image blur placeholders
+- Semantic HTML; useId() for labels; keyboard flows
+- Tailwind tokens only; no inline styles except dynamic canvas
+
+### React Performance
+```typescript
+// ❌ Bad - inline objects/functions
+<Canvas style={{ width: 200 }} onClick={() => doThing()} />
+
+// ✅ Good - memoized
+const styles = useMemo(() => ({ width: 200 }), []);
+const handleClick = useCallback(doThing, []);
+<Canvas style={styles} onClick={handleClick} />
+
+// Heavy components
+export default React.memo(ColoringPreview);
+```
+
+### Backend Guidelines
+- REST API, versioned under /api/v1, typed with zod
+- Services: /createJob, /job/:id (polling)
+- JWT from Clerk verified in middleware
+- RBAC in Supabase policies
+- helmet for headers, rate-limit 100 req/min/IP
+- Stateless API; Redis cluster; S3 lifecycle rules
+- Signed CloudFront URLs, 1h TTL
+- Map 5xx to generic "Something went wrong"
+- OpenTelemetry traces → Grafana Cloud
+
+## Security Checklist
+- [x] Clerk + JWT, MFA optional
+- [x] Fastify pre-handler verifies JWT
+- [x] No secrets in frontend – .env only
+- [x] .gitignore: .env, *.pem, coverage/
+- [x] Sanitised errors, stack only in server logs
+- [x] Fastify plugin gates every /api/*
+- [x] RBAC roles in Supabase; admin-only delete
+- [x] Supabase RLS, no raw SQL
+- [x] Vercel HTTPS, AWS WAF for Lambda
+- [x] next.config.js forces https in prod
+- [x] File upload: image/png|jpeg, ≤10 MB, clamav scan
+- [x] Stripe Radar fraud prevention
+- [x] DDOS protection: rate limiting + AWS WAF
+
+## Data & Privacy
+- Original uploads: encrypted, deleted after 24h
+- Generated images: deleted after 7d unless saved
+- GDPR-ready data deletion
+- Daily DB backups, weekly snapshots (30d retention)
+
+## Monitoring
+- OpenTelemetry + Grafana Cloud
+- Slack alerts: downtime, errors, queue latency
+- Analytics: page load, upload, generation, checkout, difficulty changes
+
+## Error Handling UX
+- Photo Upload Error: Clear message + retry
+- Generation Failure: Graceful retry/re-generate button
+- Payment Failures: Specific guidance ("Please verify card details")
+
+## File Co-location
+```
+Component.tsx
+Component.test.tsx
+Component.stories.tsx
+```
+
+## Key Dependencies
+```json
+{
+  "@clerk/nextjs": "^5.x",
+  "@supabase/supabase-js": "^2.x",
+  "stripe": "^14.x",
+  "bullmq": "^5.x",
+  "zod": "^3.x",
+  "zustand": "^4.x",
+  "@tanstack/react-query": "^5.x",
+  "tailwindcss": "^3.x",
+  "@radix-ui/react-*": "^1.x"
+}
+```
