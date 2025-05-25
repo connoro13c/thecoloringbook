@@ -1,16 +1,8 @@
 import type { Metadata } from 'next';
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from '@clerk/nextjs';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { PerformanceMonitoring } from '@/components/layout/PerformanceMonitoring';
-import { Button } from '@/components/ui/button';
+import Header from '@/components/layout/header';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -23,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Coloring Book App',
-  description: 'Turn any child photo into a printable coloring book page',
+  title: 'Colorific - Turn any photo into a coloring-book adventure',
+  description: 'Let their imagination run wild. Instantly turn everyday pictures into magical coloring pages.',
 };
 
 export default function RootLayout({
@@ -33,30 +25,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <PerformanceMonitoring />
-          <header className="flex justify-end items-center p-4 gap-4 h-16 bg-white border-b">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="outline" size="sm" className="touch-target">
-                  Sign In
-                </Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button size="sm" className="touch-target">
-                  Sign Up
-                </Button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <PerformanceMonitoring />
+        <Header />
+        {children}
+      </body>
+    </html>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useUser, SignOutButton } from '@clerk/nextjs';
+import { useState, useEffect } from 'react';
+import { createClientComponentClient } from '@/lib/auth';
+import { User } from '@supabase/supabase-js';
 import PhotoUpload from '@/components/forms/PhotoUpload';
 import ScenePrompt from '@/components/forms/ScenePrompt';
 import StylePicker, { type StyleType } from '@/components/forms/StylePicker';
@@ -15,7 +16,51 @@ interface UploadResult {
 }
 
 export default function UploadPage() {
-  const { user } = useUser() || { user: null };
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gradient-playful flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 bg-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center animate-pulse">
+          <span className="text-2xl">🎨</span>
+        </div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>;
+  }
+
+  if (!user) {
+    return <div className="min-h-screen bg-gradient-playful flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">Please sign in to continue</h1>
+        <p className="text-gray-600">You need to be authenticated to create coloring pages.</p>
+      </div>
+    </div>;
+  }
   
   // Upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -125,18 +170,21 @@ export default function UploadPage() {
             </Link>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-700 font-medium">
-                Hey {user?.firstName}! 👋
+                Hey {user?.user_metadata?.first_name || user?.email?.split('@')[0]}! 👋
               </span>
               <Link href="/dashboard">
                 <Button variant="outline" size="sm" className="rounded-full">
                   My Creations
                 </Button>
               </Link>
-              <SignOutButton>
-                <Button variant="outline" size="sm" className="rounded-full">
-                  Sign Out
-                </Button>
-              </SignOutButton>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="rounded-full"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>

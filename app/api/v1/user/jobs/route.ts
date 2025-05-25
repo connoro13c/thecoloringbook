@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/auth-server';
 
 // Mock database functions (placeholder - in production use Supabase)
 async function getUserJobs(userId: string) {
@@ -65,14 +65,17 @@ async function getUserJobs(userId: string) {
 
 export async function GET() {
   try {
-    const { userId } = await auth();
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (!userId) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
+    
+    const userId = user.id;
 
     // Fetch user's jobs from database
     const jobs = await getUserJobs(userId);

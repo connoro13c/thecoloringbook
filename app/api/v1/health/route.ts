@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
-import IORedis from 'ioredis'
+import { createClient } from '@/lib/auth-server'
 
 export async function GET() {
   const startTime = Date.now()
   
   try {
-    // Test Redis connection
-    const redisStart = Date.now()
-    const redis = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379')
-    await redis.ping()
-    const redisLatency = Date.now() - redisStart
-    await redis.disconnect()
+    // Test database connection
+    const dbStart = Date.now()
+    const supabase = await createClient()
+    await supabase.from('jobs').select('count').limit(1).single()
+    const dbLatency = Date.now() - dbStart
     
     // Calculate total response time
     const responseTime = Date.now() - startTime
@@ -19,9 +18,9 @@ export async function GET() {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       services: {
-        redis: {
+        database: {
           status: 'healthy',
-          responseTime: redisLatency
+          responseTime: dbLatency
         },
         api: {
           status: 'healthy',

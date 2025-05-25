@@ -20,8 +20,9 @@ export function useJob(jobId: string | null) {
     queryKey: ['job', jobId],
     queryFn: () => api.getJob(jobId!),
     enabled: Boolean(jobId),
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Auto-refresh if job is still processing
+      const data = query.state.data
       if (data?.status === 'PENDING' || data?.status === 'PROCESSING') {
         return 2000 // 2 seconds
       }

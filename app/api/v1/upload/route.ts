@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { createClient } from '@/lib/auth-server';
 import { StorageService } from '@/lib/storage';
 import { validateFiles } from '@/lib/validation';
 
 const validateAuth = async () => {
-  const { userId } = await auth();
-  if (!userId) {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
     throw new Error('Unauthorized');
   }
-  return userId;
+  return user.id;
 };
 
 const parseFiles = async (request: NextRequest) => {

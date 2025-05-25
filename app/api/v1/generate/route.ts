@@ -1,92 +1,102 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { createClient } from '@/lib/auth-server'
 import { z } from 'zod'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { uploadTempPage, uploadUserPage } from '@/lib/storage'
+import { checkAnonymousRateLimit, recordAnonymousRequest, getRateLimitHeaders } from '@/lib/rate-limit'
 import OpenAI from 'openai'
-import { createClient } from '@supabase/supabase-js'
-import { StorageService } from '@/lib/storage'
+import { v4 as uuidv4 } from 'uuid'
+
+const supabase = createSupabaseClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!
 })
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
+// Validation schema
 const generateSchema = z.object({
-  prompt: z.string().min(1).max(500),
-  style: z.enum(['classic', 'manga', 'bold']),
-  difficulty: z.number().int().min(1).max(5),
-  inputUrl: z.string().url().optional()
+  prompt: z.string().min(1, 'Prompt is required').max(500, 'Prompt too long'),
+  style: z.enum(['classic', 'manga', 'bold'], { 
+    errorMap: () => ({ message: 'Style must be classic, manga, or bold' })
+  }),
+  difficulty: z.number().int().min(1).max(5, 'Difficulty must be between 1 and 5'),
+  inputUrl: z.string().url('Invalid input URL')
 })
 
-const stylePrompts = {
-  classic: 'classic cartoon coloring book style with simple, clean lines',
-  manga: 'manga-inspired anime coloring book style with dynamic lines',
-  bold: 'bold outline coloring book style with thick, prominent lines'
-}
-
-const difficultyModifiers = {
-  1: 'very simple with minimal details',
-  2: 'simple with basic details', 
-  3: 'moderate detail level',
-  4: 'detailed with intricate elements',
-  5: 'highly detailed and complex'
+function getStylePrompt(style: string, difficulty: number): string {
+  const basePrompt = "Convert this image into a clean, black and white line art coloring book page"
+  
+  const stylePrompts = {
+    classic: `${basePrompt}. Use simple, clear outlines with moderate detail suitable for children.`,
+    manga: `${basePrompt}. Use manga/anime style with bold, expressive lines and stylized features.`,
+    bold: `${basePrompt}. Use thick, bold outlines with minimal detail, perfect for younger children.`
+  }
+  
+  const difficultyAdjustments = {
+    1: "Very simple lines, large areas to color, minimal detail.",
+    2: "Simple lines with some basic details.",
+    3: "Moderate detail level with clear defined areas.",
+    4: "More detailed with smaller areas to color.",
+    5: "Highly detailed with intricate patterns and fine lines."
+  }
+  
+  return `${stylePrompts[style as keyof typeof stylePrompts]} ${difficultyAdjustments[difficulty as keyof typeof difficultyAdjustments]}`
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth()
+    // Check authentication (optional - both anonymous and authenticated users allowed)
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
     
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const isAuthenticated = !!user
+    const userId = user?.id
+
+    // Rate limiting for anonymous users only
+    if (!isAuthenticated) {
+      const rateLimitResult = await checkAnonymousRateLimit(request)
+      
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          { 
+            error: 'Rate limit exceeded', 
+            message: 'Anonymous users are limited to 3 generations per hour. Create an account for unlimited access.',
+            retryAfter: rateLimitResult.resetTime.toISOString()
+          },
+          { 
+            status: 429,
+            headers: getRateLimitHeaders(rateLimitResult)
+          }
+        )
+      }
     }
 
+    // Parse and validate request body
     const body = await request.json()
-    const { prompt, style, difficulty, inputUrl } = generateSchema.parse(body)
-
-    // Create job record
-    const { data: job, error: jobError } = await supabase
-      .from('jobs')
-      .insert({
-        user_id: userId,
-        prompt,
-        style,
-        difficulty,
-        status: 'PROCESSING',
-        input_url: inputUrl
-      })
-      .select()
-      .single()
-
-    if (jobError) {
+    const validation = generateSchema.safeParse(body)
+    
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Failed to create job' }, 
-        { status: 500 }
+        { error: 'Invalid request data', details: validation.error.errors },
+        { status: 400 }
       )
     }
 
-    const startTime = Date.now()
+    const { prompt, style, difficulty, inputUrl } = validation.data
 
     try {
-      // Build OpenAI prompt
-      const stylePrompt = stylePrompts[style]
-      const difficultyPrompt = difficultyModifiers[difficulty]
+      // Generate coloring book page using DALL-E 3
+      const fullPrompt = `${prompt}. ${getStylePrompt(style, difficulty)} Remove all colors, keep only black outlines on white background. The image should be suitable for printing and coloring.`
       
-      const fullPrompt = `Create a black and white line art coloring book page. ${prompt}. 
-Style: ${stylePrompt}. 
-Complexity: ${difficultyPrompt}. 
-The image should be suitable for coloring with clear, distinct black outlines on white background. 
-No shading, no filled areas, only clean line art perfect for coloring.`
-
-      // Generate image with OpenAI
       const response = await openai.images.generate({
         model: "dall-e-3",
         prompt: fullPrompt,
         n: 1,
         size: "1024x1024",
-        style: "natural",
+        quality: "standard",
         response_format: "url"
       })
 
@@ -95,79 +105,94 @@ No shading, no filled areas, only clean line art perfect for coloring.`
       }
 
       // Download the generated image
-      const imageResponse = await fetch(response.data[0].url)
+      const imageResponse = await fetch(response.data[0]!.url!)
       if (!imageResponse.ok) {
         throw new Error('Failed to download generated image')
       }
       
       const imageBuffer = await imageResponse.arrayBuffer()
-      const imageData = new Uint8Array(imageBuffer)
+      const filename = `coloring-page-${Date.now()}.jpg`
 
-      // Upload to storage
-      const filename = `${job.id}_output.png`
-      const uploadResult = await StorageService.upload(
-        userId,
-        filename,
-        imageData,
-        { contentType: 'image/png' }
-      )
+      if (isAuthenticated && userId) {
+        // Authenticated user - save to permanent storage
+        const uploadResult = await uploadUserPage(
+          userId,
+          filename,
+          new Uint8Array(imageBuffer),
+          { contentType: 'image/jpeg' }
+        )
 
-      const processingTime = Date.now() - startTime
+        // Save to pages table
+        const { data: page, error: pageError } = await supabase
+          .from('pages')
+          .insert({
+            user_id: userId,
+            prompt,
+            style,
+            jpg_path: uploadResult.path
+          })
+          .select()
+          .single()
 
-      // Update job with success
-      const { error: updateError } = await supabase
-        .from('jobs')
-        .update({
-          status: 'COMPLETED',
-          output_url: uploadResult.url,
-          processing_time_ms: processingTime
+        if (pageError) {
+          console.error('Failed to save page record:', pageError)
+        }
+
+        return NextResponse.json({
+          success: true,
+          imageUrl: uploadResult.signedUrl,
+          pageId: page?.id,
+          expiresAt: null, // Permanent for authenticated users
+          message: 'Page saved to your account'
         })
-        .eq('id', job.id)
-
-      if (updateError) {
-        console.error('Failed to update job:', updateError)
       }
 
+      // Anonymous user - save to temporary storage
+      const sessionId = uuidv4()
+      
+      // Create session record for cleanup tracking
+      await supabase
+      .from('page_sessions')
+      .insert({ id: sessionId })
+
+        // Record this request for rate limiting
+        await recordAnonymousRequest(request, sessionId)
+
+      const uploadResult = await uploadTempPage(
+        sessionId,
+        filename,
+        new Uint8Array(imageBuffer),
+        { contentType: 'image/jpeg' }
+      )
+
+      const expiresAt = new Date(Date.now() + 2 * 60 * 1000) // 2 minutes from now
+
+      // Get updated rate limit status for headers
+      const rateLimitResult = await checkAnonymousRateLimit(request)
+
       return NextResponse.json({
-        jobId: job.id,
-        status: 'COMPLETED',
-        outputUrl: uploadResult.url,
-        processingTimeMs: processingTime
+        success: true,
+        imageUrl: uploadResult.url,
+        sessionId,
+        expiresAt: expiresAt.toISOString(),
+        message: 'Image will auto-delete in 2 minutes. Create an account to save it permanently!'
+      }, {
+        headers: getRateLimitHeaders(rateLimitResult)
       })
 
-    } catch (generationError) {
-      console.error('Generation failed:', generationError)
+    } catch (error) {
+      console.error('Failed to generate image:', error)
       
-      // Update job with failure
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'FAILED',
-          error_message: generationError instanceof Error ? generationError.message : 'Unknown error',
-          processing_time_ms: Date.now() - startTime
-        })
-        .eq('id', job.id)
-
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate image'
+      
       return NextResponse.json(
-        { 
-          error: 'Image generation failed',
-          jobId: job.id,
-          status: 'FAILED'
-        },
+        { error: 'Failed to generate coloring page', details: errorMessage },
         { status: 500 }
       )
     }
 
   } catch (error) {
     console.error('Generate API error:', error)
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
-    }
-
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

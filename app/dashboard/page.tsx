@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, SignOutButton } from '@clerk/nextjs';
+import { createClientComponentClient } from '@/lib/auth';
+import { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,8 @@ import {
   Image as ImageIcon, 
   FileText,
   Loader2,
-  AlertCircle 
+  AlertCircle,
+  LogOut
 } from 'lucide-react';
 
 interface UserJob {
@@ -30,14 +32,36 @@ interface UserJob {
 }
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const [user, setUser] = useState<User | null>(null);
   const [jobs, setJobs] = useState<UserJob[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    fetchUserJobs();
-  }, []);
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) {
+        fetchUserJobs();
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchUserJobs();
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   const fetchUserJobs = async () => {
     try {
@@ -54,6 +78,15 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      // User will be redirected by auth state change
+    } catch (err) {
+      console.error('Sign out error:', err);
     }
   };
 
@@ -135,7 +168,7 @@ export default function DashboardPage() {
                 My Coloring Pages
               </h1>
               <p className="text-sm text-gray-600">
-                Welcome back, {user?.firstName}!
+                Welcome back, {user?.email}!
               </p>
             </div>
             <div className="flex items-center space-x-4">
@@ -145,11 +178,10 @@ export default function DashboardPage() {
                   Create New
                 </Button>
               </Link>
-              <SignOutButton>
-                <Button variant="outline" size="sm">
-                  Sign Out
-                </Button>
-              </SignOutButton>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>

@@ -1,22 +1,9 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { createBrowserClient } from '@supabase/ssr';
 
-const isProtectedRoute = createRouteMatcher([
-  '/upload(.*)',
-  '/dashboard(.*)',
-  '/api/v1(.*)',
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
-  }
-});
-
-export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
-    '/(api|trpc)(.*)',
-  ],
-};
+// Client-side Supabase client
+export function createClientComponentClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}

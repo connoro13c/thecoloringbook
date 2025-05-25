@@ -8,9 +8,9 @@
 **Core Problem**: Removes the pain of DIY photo-editing; gives parents instant, personalised activity pages.
 
 ## Tech Stack
-- **Frontend**: Next.js 14 (React 18, TypeScript)
+- **Frontend**: Next.js 15 (React 18, TypeScript)
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Auth**: Clerk (MFA, social logins)
+- **Auth**: Supabase Auth (social logins, magic links)
 - **File Storage**: Supabase Storage
 - **Backend**: Next.js API routes
 - **AI**: OpenAI (DALL-E 3)
@@ -39,11 +39,15 @@ npm run lint:fix
 
 # Storybook
 npm run storybook
+
+# Troubleshooting
+# Clear Next.js cache if white screen or module errors
+rm -rf .next && npm run dev
 ```
 
 ## Project Structure
 ```
-app/                    # Next.js 14 app router
+app/                    # Next.js 15 app router
 ├── api/v1/            # Versioned API routes
 ├── (auth)/            # Auth route groups
 └── globals.css        # Global styles
@@ -55,23 +59,33 @@ components/            # Atomic → composite pattern
 
 lib/                  # Utilities & configs
 ├── utils.ts          # Utility functions
-├── auth.ts           # Clerk config
+├── auth.ts           # Supabase Auth config
 ├── db.ts             # Supabase client
 └── stripe.ts         # Stripe config
 ```
 
 ## Core Features
+
+### Anonymous Users (No Account Required)
 1. Photo upload (1-3 JPG/PNG, ≤10 MB each)
 2. Scene prompt box
 3. Style picker – "Classic Cartoon", "Manga Lite", "Bold Outlines"
 4. Difficulty slider 1-5 (controls line density)
-5. Preview & regenerate ($0.50)
-6. One-click purchase & PDF download ($0.99)
-7. History dashboard
+5. Instant JPG generation & download (FREE)
+6. 2-minute auto-delete with countdown timer
+7. "Save this page" CTA to create account
+
+### Authenticated Users (Signed In)
+1. All anonymous features
+2. Auto-save generated pages
+3. History dashboard with unlimited storage
+4. PDF export ($0.99 via Stripe)
+5. Re-download saved pages anytime
+6. No rate limits
 
 ## Implementation Phases
 - **Phase 0** – Setup: Repo, environment configuration
-- **Phase 1** – Auth & Upload: Clerk, photo drop-zone, Supabase Storage
+- **Phase 1** – Auth & Upload: Supabase Auth, photo drop-zone, Supabase Storage
 - **Phase 2** – AI pipeline: OpenAI DALL-E 3 generation, return PNG
 - **Phase 3** – Preview UI: Live progress, difficulty slider
 - **Phase 4** – Payments: Stripe Checkout, webhook to DB
@@ -114,7 +128,7 @@ export default React.memo(ColoringPreview);
 ### Backend Guidelines
 - REST API, versioned under /api/v1, typed with zod
 - Services: /createJob, /job/:id (polling)
-- JWT from Clerk verified in middleware
+- JWT from Supabase Auth verified in middleware
 - RBAC in Supabase policies
 - helmet for headers, rate-limit 100 req/min/IP
 - Stateless API
@@ -123,12 +137,12 @@ export default React.memo(ColoringPreview);
 - OpenTelemetry traces → Grafana Cloud
 
 ## Security Checklist
-- [x] Clerk + JWT, MFA optional
-- [x] Fastify pre-handler verifies JWT
+- [x] Supabase Auth + JWT, MFA optional
+- [x] Middleware verifies JWT
 - [x] No secrets in frontend – .env only
 - [x] .gitignore: .env, *.pem, coverage/
 - [x] Sanitised errors, stack only in server logs
-- [x] Fastify plugin gates every /api/*
+- [x] Middleware gates every /api/*
 - [x] RBAC roles in Supabase; admin-only delete
 - [x] Supabase RLS, no raw SQL
 - [x] HTTPS in production
@@ -138,10 +152,45 @@ export default React.memo(ColoringPreview);
 - [x] DDOS protection: rate limiting
 
 ## Data & Privacy
-- Original uploads: encrypted, deleted after 24h
-- Generated images: deleted after 7d unless saved
+- **Anonymous uploads**: Auto-expire after 2 minutes from temp-pages bucket
+- **Authenticated pages**: Permanent storage in user-pages bucket unless user deletes
+- **Cleanup mechanism**: Supabase Storage TTL + beforeunload ping to /api/v1/expire/[sessionId]
 - GDPR-ready data deletion
 - Daily DB backups, weekly snapshots (30d retention)
+
+## Storage Architecture
+```
+Supabase Storage:
+├── temp-pages/     # Public bucket, 2-min TTL, cache-control: max-age=120
+└── user-pages/     # Private bucket, permanent storage for authenticated users
+```
+
+## Database Schema
+```sql
+-- Anonymous sessions (temporary tracking)
+page_sessions (
+  id uuid PK,
+  created_at TIMESTAMP default now()
+)
+
+-- Authenticated user pages (permanent)
+pages (
+  id uuid PK,
+  user_id uuid references auth.users,
+  prompt TEXT,
+  style TEXT,
+  jpg_path TEXT,
+  pdf_path TEXT,
+  created_at TIMESTAMP default now()
+)
+-- RLS: pages.user_id = auth.uid()
+```
+
+## API Routes
+- `/api/v1/generate` (POST) - Generate JPG for anon or auth users
+- `/api/v1/export-pdf` (POST, auth required) - Export PDF after Stripe payment
+- `/api/v1/my-pages` (GET, auth required) - List user's saved pages
+- `/api/v1/expire/[sessionId]` (POST) - Manual cleanup trigger
 
 ## Monitoring
 - OpenTelemetry + Grafana Cloud
@@ -163,7 +212,7 @@ Component.stories.tsx
 ## Key Dependencies
 ```json
 {
-  "@clerk/nextjs": "^6.x",
+  "@supabase/ssr": "^0.x",
   "@supabase/supabase-js": "^2.x", 
   "openai": "^4.x",
   "stripe": "^18.x",

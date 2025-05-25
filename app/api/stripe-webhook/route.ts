@@ -1,21 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
 const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY!,
+  process.env.STRIPE_SECRET_KEY || '',
   {
     apiVersion: '2025-04-30.basil',
   }
 )
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 )
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ''
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,20 +41,23 @@ export async function POST(request: NextRequest) {
     }
 
     switch (event.type) {
-      case 'checkout.session.completed':
+      case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         await handleCheckoutSessionCompleted(session)
         break
+      }
 
-      case 'payment_intent.succeeded':
+      case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
         await handlePaymentIntentSucceeded(paymentIntent)
         break
+      }
 
-      case 'payment_intent.payment_failed':
+      case 'payment_intent.payment_failed': {
         const failedPayment = event.data.object as Stripe.PaymentIntent
         await handlePaymentIntentFailed(failedPayment)
         break
+      }
 
       default:
         console.log(`Unhandled event type: ${event.type}`)

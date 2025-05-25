@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@clerk/nextjs';
+import { createClientComponentClient } from '@/lib/auth';
+import { User } from '@supabase/supabase-js';
 import { Loader2, CreditCard, Download } from 'lucide-react';
 
 interface PaymentButtonProps {
@@ -23,10 +24,28 @@ export function PaymentButton({
   onPaymentSuccess,
 }: PaymentButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { userId } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   const handlePayment = async () => {
-    if (!userId) {
+    if (!user) {
       console.error('User not authenticated');
       return;
     }
@@ -41,7 +60,6 @@ export function PaymentButton({
         },
         body: JSON.stringify({
           jobId,
-          userId,
           productType,
         }),
       });
