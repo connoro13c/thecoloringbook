@@ -46,14 +46,7 @@ DROP POLICY IF EXISTS "Allow all operations on page_sessions" ON public.page_ses
 CREATE POLICY "Allow all operations on page_sessions" ON public.page_sessions
   FOR ALL USING (TRUE);
 
--- Function to cleanup old anonymous sessions (older than 2 minutes)
-CREATE OR REPLACE FUNCTION cleanup_old_sessions()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM public.page_sessions 
-    WHERE created_at < NOW() - INTERVAL '2 minutes';
-END;
-$$ LANGUAGE plpgsql;
+-- Auto-cleanup functionality removed
 
 -- Indexes for performance and rate limiting
 CREATE INDEX IF NOT EXISTS idx_pages_user_id ON public.pages(user_id);

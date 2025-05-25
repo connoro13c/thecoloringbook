@@ -4,30 +4,35 @@ import { createClient } from '@/lib/auth-server';
 import { z } from 'zod';
 import OpenAI from 'openai';
 import { uploadTempPage, uploadUserPage } from '@/lib/storage';
+import { v4 as uuidv4 } from 'uuid';
+import { buildColoringPrompt } from '@/lib/prompt-builder';
+
+
+// -------------------------------------------------------------
+// Zod schema for the vision-model JSON structure
+// -------------------------------------------------------------
+const ChildAttributeSchema = z.object({
+  age: z.string(),
+  hair_style: z.string(),
+  headwear: z.string(),
+  eyewear: z.string(),
+  clothing: z.string(),
+  pose: z.string(),
+  main_object: z.string()
+});
+type ChildAttributes = z.infer<typeof ChildAttributeSchema>;
 
 // Request validation schema
 const CreateJobSchema = z.object({
-  imageUrls: z.array(z.string().url()).min(1).max(3),
+  imageUrls: z.array(z.string().url()).length(1),
   scenePrompt: z.string().max(500).optional(),
-  style: z.enum(['classic', 'manga', 'bold']).default('classic'),
+  style: z.enum(['classic', 'ghibli', 'bold']).default('classic'),
   difficulty: z.number().int().min(1).max(5).default(3),
+  orientation: z.enum(['portrait', 'landscape']).default('portrait'),
   anonymous: z.boolean().optional().default(false),
 });
 
-// Style prompts mapping
-const stylePrompts = {
-  classic: 'classic cartoon coloring book style with simple, clean lines',
-  manga: 'manga-inspired anime coloring book style with dynamic lines',
-  bold: 'bold outline coloring book style with thick, prominent lines'
-};
 
-const difficultyModifiers = {
-  1: 'very simple with minimal details',
-  2: 'simple with basic details', 
-  3: 'moderate detail level',
-  4: 'detailed with intricate elements',
-  5: 'highly detailed and complex'
-};
 
 async function createAnonymousSession(supabase: Awaited<ReturnType<typeof createClient>>, sessionId: string) {
   const { error: sessionError } = await supabase
@@ -47,7 +52,7 @@ async function createAnonymousSession(supabase: Awaited<ReturnType<typeof create
   return { id: sessionId as string, user_id: null };
 }
 
-async function createAuthenticatedJob(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, scenePrompt: string, style: string, difficulty: number, imageUrls: string[]) {
+async function createAuthenticatedJob(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, scenePrompt: string, style: string, difficulty: number, orientation: string, imageUrls: string[], imageAnalysis: ChildAttributes) {
   const { data: jobData, error: jobError } = await supabase
     .from('jobs')
     .insert({
@@ -56,7 +61,8 @@ async function createAuthenticatedJob(supabase: Awaited<ReturnType<typeof create
       style: style.toUpperCase(),
       difficulty,
       status: 'PROCESSING',
-      input_url: imageUrls[0]
+      input_url: imageUrls[0],
+      image_analysis: JSON.stringify(imageAnalysis)
     })
     .select()
     .single();
@@ -69,22 +75,78 @@ async function createAuthenticatedJob(supabase: Awaited<ReturnType<typeof create
   return jobData;
 }
 
-async function generateImage(openai: OpenAI, scenePrompt: string, style: string, difficulty: number) {
-  const stylePrompt = stylePrompts[style as keyof typeof stylePrompts];
-  const difficultyPrompt = difficultyModifiers[difficulty as keyof typeof difficultyModifiers];
+// -------------------------------------------------------------
+// analyseImageWithVision — strict JSON return, no markdown noise
+// -------------------------------------------------------------
+async function analyseImageWithVision(
+  openai: OpenAI,
+  imageUrl: string,
+  userPrompt?: string
+): Promise<ChildAttributes> {
+  const prompt = userPrompt ?? `Analyse this photo and extract key features for creating a colouring‑book page. Return JSON ONLY with these exact keys (use "none" if absent):
+${JSON.stringify({
+  age: 'young child / toddler / school age',
+  hair_style: 'e.g. short curly hair, long straight hair',
+  headwear: 'e.g. baseball cap, headband, none',
+  eyewear: 'e.g. round sunglasses, glasses, none',
+  clothing: 'e.g. t‑shirt and shorts, dress with sleeves',
+  pose: 'e.g. standing with arms raised, sitting cross‑legged',
+  main_object: 'e.g. toy car, ball, none'
+}, null, 2)}`;
+
+  // Build the chat payload with enforced system instruction
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    max_tokens: 150,
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an image analyst. Respond ONLY with strict JSON, no markdown or extra text.'
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: imageUrl } }
+        ]
+      }
+    ]
+  });
+
+  const content = response.choices[0]?.message?.content ?? '{}';
+
+  // Validate & parse; throw early if the model violated the contract
+  const parsed = (() => {
+    try {
+      return ChildAttributeSchema.parse(JSON.parse(content));
+    } catch (err) {
+      console.error('[analyseImageWithVision] invalid JSON from vision model', err, '\nRaw content:\n', content);
+      throw new Error('Vision model returned invalid JSON');
+    }
+  })();
+
+  return parsed;
+}
+
+async function generateImage(openai: OpenAI, imageUrls: string[], scenePrompt: string, style: string, difficulty: number, orientation: string): Promise<{imageUrl: string, imageAnalysis: ChildAttributes}> {
+  // Analyze the first uploaded image with GPT-4 Vision
+  const childAttributes = await analyseImageWithVision(openai, imageUrls[0]);
+  console.log('Image analysis:', childAttributes);
   
-  const fullPrompt = `Create a black and white line art coloring book page. ${scenePrompt || "Turn this photo into a coloring book page"}. 
-Style: ${stylePrompt}. 
-Complexity: ${difficultyPrompt}. 
-The image should be suitable for coloring with clear, distinct black outlines on white background. 
-No shading, no filled areas, only clean line art perfect for coloring.`;
+  // Build the coloring prompt using structured attributes
+  const coloringPrompt = buildColoringPrompt(
+    childAttributes,
+    scenePrompt || 'Turn this photo into a coloring book page',
+    difficulty,
+    style
+  );
 
   const response = await openai.images.generate({
     model: "dall-e-3",
-    prompt: fullPrompt,
+    prompt: coloringPrompt,
     n: 1,
-    size: "1024x1024",
-    style: "natural",
+    size: orientation === 'landscape' ? "1792x1024" : "1024x1792",
+    quality: "hd",
     response_format: "url"
   });
 
@@ -92,7 +154,10 @@ No shading, no filled areas, only clean line art perfect for coloring.`;
     throw new Error('No image generated');
   }
 
-  return response.data[0].url;
+  return {
+    imageUrl: response.data[0].url,
+    imageAnalysis: childAttributes
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -108,7 +173,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { imageUrls, scenePrompt, style, difficulty, anonymous } = validation.data;
+    const { imageUrls, scenePrompt, style, difficulty, orientation, anonymous } = validation.data;
 
     // Handle authentication - only required for authenticated generation
     const supabase = await createClient();
@@ -125,7 +190,7 @@ export async function POST(request: NextRequest) {
       userId = user.id;
     } else {
       // Generate a temporary session ID for anonymous users
-      sessionId = `anon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionId = uuidv4();
     }
 
     // Initialize OpenAI
@@ -134,19 +199,19 @@ export async function POST(request: NextRequest) {
     });
 
     try {
+      console.log(`Starting generation for user ${userId}`);
+      const startTime = Date.now();
+
+      // Generate image with OpenAI
+      const { imageUrl, imageAnalysis } = await generateImage(openai, imageUrls, scenePrompt || '', style, difficulty, orientation);
+
       let job: { id: string; user_id: string | null };
 
       if (anonymous) {
         job = await createAnonymousSession(supabase, sessionId as string);
       } else {
-        job = await createAuthenticatedJob(supabase, userId as string, scenePrompt || '', style, difficulty, imageUrls);
+        job = await createAuthenticatedJob(supabase, userId as string, scenePrompt || '', style, difficulty, orientation, imageUrls, imageAnalysis);
       }
-
-      console.log(`Starting job ${job.id} for user ${userId}`);
-      const startTime = Date.now();
-
-      // Generate image with OpenAI
-      const imageUrl = await generateImage(openai, scenePrompt || '', style, difficulty);
 
       // Download the generated image
       const imageResponse = await fetch(imageUrl);
@@ -202,6 +267,7 @@ export async function POST(request: NextRequest) {
         jobId: job.id,
         status: 'COMPLETED',
         imageUrl: uploadResult.url || uploadResult.signedUrl,
+        imageAnalysis: imageAnalysis,
         message: 'Coloring page generated successfully',
         ...(anonymous && { sessionId }),
       });

@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/auth-server';
-import { StorageService } from '@/lib/storage';
+import { uploadTempPage, uploadUserPage } from '@/lib/storage';
 import { validateFiles } from '@/lib/validation';
+import { v4 as uuidv4 } from 'uuid';
 
 const validateAuth = async () => {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
-    throw new Error('Unauthorized');
+    return null; // Allow anonymous users
   }
   return user.id;
 };
@@ -36,21 +37,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate single session ID for anonymous users
+    const sessionId = userId ? null : uuidv4();
+
     const uploadResults = await Promise.all(
       files.map(async (file) => {
         const timestamp = Date.now();
         const filename = `${timestamp}-${file.name}`;
         
-        const result = await StorageService.upload(
-          userId,
+        if (userId) {
+          // Authenticated user - permanent storage
+          const result = await uploadUserPage(
+            userId,
+            filename,
+            file,
+            { contentType: file.type }
+          );
+          return {
+            filename,
+            url: result.signedUrl,
+            size: file.size
+          };
+        }
+        
+        // Anonymous user - temporary storage
+        const result = await uploadTempPage(
+          sessionId as string,
           filename,
           file,
           { contentType: file.type }
         );
-        
         return {
+          filename,
           url: result.url,
-          filename: filename,
+          size: file.size,
+          sessionId
         };
       })
     );

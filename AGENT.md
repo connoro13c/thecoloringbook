@@ -16,11 +16,14 @@
 - **AI**: OpenAI (DALL-E 3)
 - **Database**: Supabase (Postgres + RLS)
 - **Payments**: Stripe + Stripe Radar
-- **Hosting**: Local development (production hosting TBD)
+- **Hosting**: Local development on port 3000
 
 ## Key Commands
 ```bash
-# Development
+# Development (clean start - kills port 3000 first)
+npm run start:clean
+
+# Development (standard)
 npm run dev
 
 # Build & Type Check
@@ -72,8 +75,7 @@ lib/                  # Utilities & configs
 3. Style picker – "Classic Cartoon", "Manga Lite", "Bold Outlines"
 4. Difficulty slider 1-5 (controls line density)
 5. Instant JPG generation & download (FREE)
-6. 2-minute auto-delete with countdown timer
-7. "Save this page" CTA to create account
+6. "Save this page" CTA to create account
 
 ### Authenticated Users (Signed In)
 1. All anonymous features
@@ -152,16 +154,15 @@ export default React.memo(ColoringPreview);
 - [x] DDOS protection: rate limiting
 
 ## Data & Privacy
-- **Anonymous uploads**: Auto-expire after 2 minutes from temp-pages bucket
+- **Anonymous uploads**: Stored temporarily in temp-pages bucket
 - **Authenticated pages**: Permanent storage in user-pages bucket unless user deletes
-- **Cleanup mechanism**: Supabase Storage TTL + beforeunload ping to /api/v1/expire/[sessionId]
 - GDPR-ready data deletion
 - Daily DB backups, weekly snapshots (30d retention)
 
 ## Storage Architecture
 ```
 Supabase Storage:
-├── temp-pages/     # Public bucket, 2-min TTL, cache-control: max-age=120
+├── temp-pages/     # Public bucket, temporary storage for anonymous users
 └── user-pages/     # Private bucket, permanent storage for authenticated users
 ```
 
@@ -190,7 +191,6 @@ pages (
 - `/api/v1/generate` (POST) - Generate JPG for anon or auth users
 - `/api/v1/export-pdf` (POST, auth required) - Export PDF after Stripe payment
 - `/api/v1/my-pages` (GET, auth required) - List user's saved pages
-- `/api/v1/expire/[sessionId]` (POST) - Manual cleanup trigger
 
 ## Monitoring
 - OpenTelemetry + Grafana Cloud

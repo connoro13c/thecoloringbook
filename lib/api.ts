@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export type JobStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PAID'
-export type Style = 'CLASSIC' | 'MANGA' | 'BOLD'
+export type Style = 'CLASSIC' | 'GHIBLI' | 'BOLD'
 
 export interface Job {
   id: string

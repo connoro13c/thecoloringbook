@@ -18,7 +18,7 @@ export const createUserClient = (userToken: string) => {
 }
 
 // Storage buckets for different use cases
-export const tempPagesBucket = supabaseService.storage.from('temp-pages')  // Public, 2-min TTL
+export const tempPagesBucket = supabaseService.storage.from('temp-pages')  // Public, temporary storage
 export const userPagesBucket = supabaseService.storage.from('user-pages')  // Private, permanent
 
 // Legacy bucket for backwards compatibility
@@ -40,7 +40,7 @@ export async function uploadTempPage(
   
   const { data, error } = await tempPagesBucket.upload(path, file, {
     contentType: options.contentType,
-    cacheControl: options.cacheControl || 'max-age=120' // 2 minutes
+    cacheControl: options.cacheControl || 'no-cache'
   })
   
   if (error) {
@@ -87,22 +87,6 @@ export async function getUserPageSignedUrl(path: string, expiresIn = 3600): Prom
   return data.signedUrl
 }
 
-export async function deleteTempSession(sessionId: string): Promise<void> {
-  const { data: files, error: listError } = await tempPagesBucket.list(sessionId)
-  
-  if (listError) {
-    throw new Error(`Failed to list session files: ${listError.message}`)
-  }
-  
-  if (files.length > 0) {
-    const filePaths = files.map(file => `${sessionId}/${file.name}`)
-    const { error: deleteError } = await tempPagesBucket.remove(filePaths)
-    
-    if (deleteError) {
-      throw new Error(`Failed to delete session files: ${deleteError.message}`)
-    }
-  }
-}
 
 export async function deleteUserPage(userId: string, filename: string): Promise<void> {
   const path = `${userId}/${filename}`

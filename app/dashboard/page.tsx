@@ -24,7 +24,7 @@ interface UserJob {
   imageUrl?: string;
   pdfUrl?: string;
   scenePrompt?: string;
-  style: 'classic' | 'manga' | 'bold';
+  style: 'classic' | 'ghibli' | 'bold';
   difficulty: number;
   paymentStatus?: 'pending' | 'paid' | 'failed';
   createdAt: string;

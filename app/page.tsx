@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClientComponentClient } from '@/lib/auth'
-import Image from 'next/image'
 import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -10,6 +9,8 @@ import PhotoUpload from '@/components/forms/PhotoUpload'
 import ScenePrompt from '@/components/forms/ScenePrompt'
 import StylePicker, { type StyleType } from '@/components/forms/StylePicker'
 import DifficultySlider from '@/components/forms/DifficultySlider'
+import OrientationPicker from '@/components/forms/OrientationPicker'
+import { type ChildAttributes } from '@/lib/prompt-builder'
 
 interface UploadResult {
   url: string;
@@ -26,11 +27,13 @@ export default function Home() {
   const [uploading, setUploading] = useState(false)
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
   const [uploadError, setUploadError] = useState<string>('')
+  const [imageAnalysis, setImageAnalysis] = useState<ChildAttributes | null>(null)
 
   // Job parameters
   const [scenePrompt, setScenePrompt] = useState<string>('')
   const [style, setStyle] = useState<StyleType>('classic')
   const [difficulty, setDifficulty] = useState<number>(3)
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
 
   // Generation state
   const [generatedImage, setGeneratedImage] = useState<{
@@ -40,7 +43,7 @@ export default function Home() {
     sessionId?: string;
   } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [countdown, setCountdown] = useState<number | null>(null)
+
 
   useEffect(() => {
     const getUser = async () => {
@@ -60,28 +63,14 @@ export default function Home() {
     return () => subscription.unsubscribe()
   }, [supabase.auth])
 
-  // Countdown effect for anonymous images
-  useEffect(() => {
-    if (countdown === null) return
 
-    if (countdown <= 0) {
-      setGeneratedImage(null)
-      setCountdown(null)
-      return
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown(countdown - 1)
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [countdown])
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return
 
     setUploading(true)
     setUploadError('')
+    setImageAnalysis(null) // Clear previous analysis
 
     try {
       const formData = new FormData()
@@ -102,6 +91,29 @@ export default function Home() {
 
       setUploadResults(result.files)
       setSelectedFiles([])
+      
+      // Get image analysis for the first uploaded file
+      if (result.files && result.files.length > 0) {
+        try {
+          const analysisResponse = await fetch('/api/v1/analyze-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: result.files[0].url
+            }),
+          })
+          
+          if (analysisResponse.ok) {
+            const analysisResult = await analysisResponse.json()
+            setImageAnalysis(analysisResult.attributes || null)
+          }
+        } catch (error) {
+          console.error('Failed to analyze image:', error)
+          // Continue without analysis - it's not critical
+        }
+      }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -126,6 +138,7 @@ export default function Home() {
           scenePrompt: scenePrompt.trim() || undefined,
           style,
           difficulty,
+          orientation,
           anonymous: !user, // Flag for anonymous generation
         }),
       })
@@ -143,10 +156,7 @@ export default function Home() {
         sessionId: result.sessionId,
       })
 
-      // Start 2-minute countdown for anonymous users
-      if (!user) {
-        setCountdown(120)
-      }
+
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Failed to generate coloring page')
     } finally {
@@ -158,7 +168,6 @@ export default function Home() {
     if (uploadResults.length === 0) return
     
     setGeneratedImage(null)
-    setCountdown(null)
     await handleGenerate()
   }
 
@@ -246,14 +255,8 @@ export default function Home() {
               <div className="grid lg:grid-cols-2 gap-8">
                 {/* Left Column - Upload and Settings */}
                 <div className="space-y-6">
-                  {/* Step 1: Photo Upload */}
+                  {/* Photo Upload */}
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-sm font-medium rounded-full">
-                        1
-                      </span>
-                      <h3 className="text-lg font-medium text-gray-900">Upload Photos</h3>
-                    </div>
                     
                     <PhotoUpload
                       onFilesSelect={setSelectedFiles}
@@ -278,12 +281,7 @@ export default function Home() {
                     <>
                       {/* Step 2: Scene Prompt */}
                       <div className="pt-6 border-t space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="flex items-center justify-center w-6 h-6 bg-purple-600 text-white text-sm font-medium rounded-full">
-                            2
-                          </span>
-                          <h3 className="text-lg font-medium text-gray-900">Customize Your Page</h3>
-                        </div>
+
                         
                         <ScenePrompt
                           value={scenePrompt}
@@ -306,6 +304,15 @@ export default function Home() {
                         <DifficultySlider
                           value={difficulty}
                           onChange={setDifficulty}
+                          disabled={isGenerating}
+                        />
+                      </div>
+
+                      {/* Step 5: Orientation */}
+                      <div className="space-y-4">
+                        <OrientationPicker
+                          value={orientation}
+                          onChange={setOrientation}
                           disabled={isGenerating}
                         />
                       </div>
@@ -346,6 +353,22 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                      {imageAnalysis && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h4 className="text-sm font-medium text-blue-900 mb-2">
+                            What our AI sees in your photo:
+                          </h4>
+                          <div className="text-sm text-blue-800 space-y-1">
+                            <div><strong>Age:</strong> {imageAnalysis.age}</div>
+                            <div><strong>Hair:</strong> {imageAnalysis.hair_style}</div>
+                            {imageAnalysis.headwear !== 'none' && <div><strong>Headwear:</strong> {imageAnalysis.headwear}</div>}
+                            {imageAnalysis.eyewear !== 'none' && <div><strong>Eyewear:</strong> {imageAnalysis.eyewear}</div>}
+                            <div><strong>Clothing:</strong> {imageAnalysis.clothing}</div>
+                            <div><strong>Pose:</strong> {imageAnalysis.pose}</div>
+                            {imageAnalysis.main_object !== 'none' && <div><strong>Main object:</strong> {imageAnalysis.main_object}</div>}
+                          </div>
+                        </div>
+                      )}
                       <p className="text-sm text-green-600 mt-2">
                         Now configure your coloring page settings and click &quot;Generate&quot;
                       </p>
@@ -361,19 +384,12 @@ export default function Home() {
                         <h3 className="text-lg font-medium text-gray-900">
                           Your Coloring Page
                         </h3>
-                        {countdown !== null && (
-                          <div className="text-sm text-orange-600 font-medium">
-                            ⏰ Auto-deletes in {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
-                          </div>
-                        )}
                       </div>
                       <div className="relative">
-                        <Image
+                        <img
                           src={generatedImage.imageUrl}
                           alt="Generated coloring page"
                           className="w-full rounded-lg border"
-                          width={800}
-                          height={600}
                         />
                       </div>
                       <div className="mt-4 space-y-2">
@@ -435,9 +451,9 @@ export default function Home() {
           </div>
           
           <div className="text-center p-6 bg-white rounded-lg shadow-sm">
-            <div className="text-3xl mb-4">🔄</div>
-            <h3 className="text-lg font-semibold mb-2">Auto-Cleanup</h3>
-            <p className="text-gray-600">Anonymous pages auto-delete in 2 minutes (save to keep them!)</p>
+            <div className="text-3xl mb-4">🎨</div>
+            <h3 className="text-lg font-semibold mb-2">Easy to Use</h3>
+            <p className="text-gray-600">Upload photos and get instant coloring pages with just a few clicks!</p>
           </div>
         </div>
 
@@ -462,7 +478,7 @@ export default function Home() {
                 What happens to my pages without an account?
               </h3>
               <p className="text-gray-600">
-                Without an account, your generated coloring pages will automatically delete after 2 minutes. This gives you time to download and save them manually, but creating an account ensures they&apos;re stored safely forever.
+                Without an account, you can still generate and download coloring pages instantly. Creating an account lets you save your pages permanently, organize them in a dashboard, and export high-quality PDFs.
               </p>
             </div>
 

@@ -19,8 +19,9 @@ const openai = new OpenAI({
 // Validation schema
 const generateSchema = z.object({
   prompt: z.string().min(1, 'Prompt is required').max(500, 'Prompt too long'),
-  style: z.enum(['classic', 'manga', 'bold'], { 
-    errorMap: () => ({ message: 'Style must be classic, manga, or bold' })
+  refinementPrompt: z.string().max(300).optional(),
+  style: z.enum(['classic', 'ghibli', 'bold'], { 
+    errorMap: () => ({ message: 'Style must be classic, ghibli, or bold' })
   }),
   difficulty: z.number().int().min(1).max(5, 'Difficulty must be between 1 and 5'),
   inputUrl: z.string().url('Invalid input URL')
@@ -31,7 +32,7 @@ function getStylePrompt(style: string, difficulty: number): string {
   
   const stylePrompts = {
     classic: `${basePrompt}. Use simple, clear outlines with moderate detail suitable for children.`,
-    manga: `${basePrompt}. Use manga/anime style with bold, expressive lines and stylized features.`,
+    ghibli: `${basePrompt}. Use Studio Ghibli-inspired whimsical style with flowing, organic lines and magical details.`,
     bold: `${basePrompt}. Use thick, bold outlines with minimal detail, perfect for younger children.`
   }
   
@@ -85,11 +86,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { prompt, style, difficulty, inputUrl } = validation.data
+    const { prompt, refinementPrompt, style, difficulty, inputUrl } = validation.data
 
     try {
       // Generate coloring book page using DALL-E 3
-      const fullPrompt = `${prompt}. ${getStylePrompt(style, difficulty)} Remove all colors, keep only black outlines on white background. The image should be suitable for printing and coloring.`
+      const fullPrompt = `${prompt}. ${getStylePrompt(style, difficulty)} Remove all colors, keep only black outlines on white background. The image should be suitable for printing and coloring.${refinementPrompt ? ` Special refinement instructions: ${refinementPrompt}` : ''}`
       
       const response = await openai.images.generate({
         model: "dall-e-3",
@@ -142,21 +143,15 @@ export async function POST(request: NextRequest) {
           success: true,
           imageUrl: uploadResult.signedUrl,
           pageId: page?.id,
-          expiresAt: null, // Permanent for authenticated users
           message: 'Page saved to your account'
         })
       }
 
       // Anonymous user - save to temporary storage
       const sessionId = uuidv4()
-      
-      // Create session record for cleanup tracking
-      await supabase
-      .from('page_sessions')
-      .insert({ id: sessionId })
 
-        // Record this request for rate limiting
-        await recordAnonymousRequest(request, sessionId)
+      // Record this request for rate limiting
+      await recordAnonymousRequest(request, sessionId)
 
       const uploadResult = await uploadTempPage(
         sessionId,
@@ -165,8 +160,6 @@ export async function POST(request: NextRequest) {
         { contentType: 'image/jpeg' }
       )
 
-      const expiresAt = new Date(Date.now() + 2 * 60 * 1000) // 2 minutes from now
-
       // Get updated rate limit status for headers
       const rateLimitResult = await checkAnonymousRateLimit(request)
 
@@ -174,8 +167,7 @@ export async function POST(request: NextRequest) {
         success: true,
         imageUrl: uploadResult.url,
         sessionId,
-        expiresAt: expiresAt.toISOString(),
-        message: 'Image will auto-delete in 2 minutes. Create an account to save it permanently!'
+        message: 'Coloring page generated successfully! Create an account to save and organize your pages.'
       }, {
         headers: getRateLimitHeaders(rateLimitResult)
       })

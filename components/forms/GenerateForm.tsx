@@ -17,7 +17,7 @@ import type { Style } from '@/lib/api'
 
 const formSchema = z.object({
   prompt: z.string().min(1, 'Please describe what you want to create').max(500),
-  style: z.enum(['CLASSIC', 'MANGA', 'BOLD'] as const),
+  style: z.enum(['CLASSIC', 'GHIBLI', 'BOLD'] as const),
   difficulty: z.number().min(1).max(5),
 })
 
@@ -30,8 +30,8 @@ const styleOptions = [
     description: 'Simple, clean lines perfect for young children'
   },
   {
-    value: 'MANGA' as const,
-    label: 'Manga Lite',
+    value: 'GHIBLI' as const,
+    label: 'Ghibli Style',
     description: 'Anime-inspired with dynamic character poses'
   },
   {

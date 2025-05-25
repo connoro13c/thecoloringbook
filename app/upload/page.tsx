@@ -9,6 +9,7 @@ import StylePicker, { type StyleType } from '@/components/forms/StylePicker';
 import DifficultySlider from '@/components/forms/DifficultySlider';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { type ChildAttributes } from '@/lib/prompt-builder';
 
 interface UploadResult {
   url: string;
@@ -67,9 +68,11 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
   const [uploadError, setUploadError] = useState<string>('');
+  const [imageAnalysis, setImageAnalysis] = useState<ChildAttributes | null>(null);
 
   // Job parameters
   const [scenePrompt, setScenePrompt] = useState<string>('');
+  const [refinementPrompt, setRefinementPrompt] = useState<string>('');
   const [style, setStyle] = useState<StyleType>('classic');
   const [difficulty, setDifficulty] = useState<number>(3);
 
@@ -77,6 +80,7 @@ export default function UploadPage() {
   const [generatedImage, setGeneratedImage] = useState<{
     jobId: string;
     imageUrl: string;
+    imageAnalysis?: string;
     status: 'completed' | 'processing' | 'failed';
   } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -86,6 +90,7 @@ export default function UploadPage() {
 
     setUploading(true);
     setUploadError('');
+    setImageAnalysis(null); // Clear previous analysis
 
     try {
       const formData = new FormData();
@@ -104,6 +109,29 @@ export default function UploadPage() {
 
       setUploadResults(result.files);
       setSelectedFiles([]);
+      
+      // Get image analysis for the first uploaded file
+      if (result.files && result.files.length > 0) {
+        try {
+          const analysisResponse = await fetch('/api/v1/analyze-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              imageUrl: result.files[0].url
+            }),
+          });
+          
+          if (analysisResponse.ok) {
+            const analysisResult = await analysisResponse.json();
+            setImageAnalysis(analysisResult.attributes || null);
+          }
+        } catch (error) {
+          console.error('Failed to analyze image:', error);
+          // Continue without analysis - it's not critical
+        }
+      }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -118,14 +146,15 @@ export default function UploadPage() {
     setUploadError('');
 
     try {
-      const response = await fetch('/api/v1/createJob', {
+      const response = await fetch('/api/v1/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          imageUrls: uploadResults.map(result => result.url),
-          scenePrompt: scenePrompt.trim() || undefined,
+          inputUrl: uploadResults[0].url, // Use first uploaded image
+          prompt: scenePrompt.trim() || 'Turn this photo into a coloring book page',
+          refinementPrompt: refinementPrompt.trim() || undefined,
           style,
           difficulty,
         }),
@@ -138,8 +167,9 @@ export default function UploadPage() {
       }
 
       setGeneratedImage({
-        jobId: result.jobId,
+        jobId: result.pageId || 'temp',
         imageUrl: result.imageUrl,
+        imageAnalysis: result.imageAnalysis,
         status: 'completed',
       });
     } catch (err) {
@@ -310,6 +340,22 @@ export default function UploadPage() {
                       </div>
                     ))}
                   </div>
+                  {imageAnalysis && (
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">
+                        What our AI sees in your photo:
+                      </h4>
+                      <div className="text-sm text-blue-800 space-y-1">
+                        <div><strong>Age:</strong> {imageAnalysis.age}</div>
+                        <div><strong>Hair:</strong> {imageAnalysis.hair_style}</div>
+                        {imageAnalysis.headwear !== 'none' && <div><strong>Headwear:</strong> {imageAnalysis.headwear}</div>}
+                        {imageAnalysis.eyewear !== 'none' && <div><strong>Eyewear:</strong> {imageAnalysis.eyewear}</div>}
+                        <div><strong>Clothing:</strong> {imageAnalysis.clothing}</div>
+                        <div><strong>Pose:</strong> {imageAnalysis.pose}</div>
+                        {imageAnalysis.main_object !== 'none' && <div><strong>Main object:</strong> {imageAnalysis.main_object}</div>}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-sm text-green-600 mt-2">
                     Now configure your coloring page settings and click &quot;Generate&quot;
                   </p>
@@ -333,7 +379,30 @@ export default function UploadPage() {
                     className="w-full rounded-lg border"
                   />
                 </div>
-                <div className="mt-4 flex gap-2">
+                {generatedImage.imageAnalysis && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">
+                      What our AI saw in your photo:
+                    </h4>
+                    <p className="text-sm text-blue-800">{generatedImage.imageAnalysis}</p>
+                  </div>
+                )}
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Refinement Instructions (Optional)
+                    </label>
+                    <textarea
+                      value={refinementPrompt}
+                      onChange={(e) => setRefinementPrompt(e.target.value)}
+                      placeholder="Tell us what to change: 'Remove background', 'Make lines thicker', 'Add more detail to the face', etc."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={2}
+                      maxLength={300}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">{refinementPrompt.length}/300 characters</p>
+                  </div>
+                  <div className="flex gap-2">
                   <Button
                     onClick={handleRegenerate}
                     disabled={isGenerating}
@@ -345,6 +414,7 @@ export default function UploadPage() {
                   <Button className="flex-1">
                     Download PDF ($0.99)
                   </Button>
+                  </div>
                 </div>
               </div>
             )}

@@ -14,7 +14,7 @@ interface PhotoUploadProps {
 
 export default function PhotoUpload({
   onFilesSelect,
-  maxFiles = 3,
+  maxFiles = 1,
   disabled = false,
 }: PhotoUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -72,75 +72,66 @@ export default function PhotoUpload({
         `}
       >
         <input {...getInputProps()} />
-        <div className="relative">
-          <div className={`mx-auto w-20 h-20 rounded-2xl mb-6 flex items-center justify-center ${isDragActive ? 'bg-primary/20' : 'bg-gradient-to-br from-blue-100 to-purple-100'} transition-all duration-300`}>
-            {isDragActive ? (
-              <span className="text-4xl animate-bounce">📸</span>
-            ) : (
-              <Upload className={`h-10 w-10 ${isDragActive ? 'text-primary' : 'text-gray-500'} transition-colors`} />
-            )}
+        
+        {selectedFiles.length > 0 ? (
+          // Show uploaded photo
+          <div className="relative">
+            <div className="mx-auto mb-6 max-w-sm">
+              <img
+                src={URL.createObjectURL(selectedFiles[0])}
+                alt="Preview of uploaded content"
+                className="w-full h-auto max-h-64 object-contain rounded-2xl shadow-lg"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFile(0);
+                }}
+                className="absolute -top-2 -right-2 h-8 w-8 p-0 text-white bg-red-500 hover:bg-red-600 rounded-full shadow-lg"
+                disabled={disabled}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              ✅ Photo uploaded successfully!
+            </h3>
+            <p className="text-gray-600 mb-2">
+              {selectedFiles[0].name} • {(selectedFiles[0].size / 1024 / 1024).toFixed(1)} MB
+            </p>
+            <p className="text-sm text-gray-500">
+              Click to replace or drag a new photo
+            </p>
           </div>
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {isDragActive ? '✨ Drop your photos here!' : '📷 Drop your photos here or click to upload'}
-        </h3>
-        <p className="text-gray-600 mb-2">
-          {selectedFiles.length === 0 
-            ? `Upload up to ${maxFiles} photos of your little ones`
-            : `Add ${maxFiles - selectedFiles.length} more photo${maxFiles - selectedFiles.length !== 1 ? 's' : ''}`
-          }
-        </p>
-        <div className="inline-flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full">
-          <span>JPG or PNG</span>
-          <span>•</span>
-          <span>Max 10MB each</span>
-        </div>
+        ) : (
+          // Show upload area
+          <div className="relative">
+            <div className={`mx-auto w-20 h-20 rounded-2xl mb-6 flex items-center justify-center ${isDragActive ? 'bg-primary/20' : 'bg-gradient-to-br from-blue-100 to-purple-100'} transition-all duration-300`}>
+              {isDragActive ? (
+                <span className="text-4xl animate-bounce">📸</span>
+              ) : (
+                <Upload className={`h-10 w-10 ${isDragActive ? 'text-primary' : 'text-gray-500'} transition-colors`} />
+              )}
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {isDragActive ? '✨ Drop your photo here!' : '📷 Drop your photo here or click to upload'}
+            </h3>
+            <p className="text-gray-600 mb-2">
+              Upload a photo of your little one
+            </p>
+            <div className="inline-flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full">
+              <span>JPG or PNG</span>
+              <span>•</span>
+              <span>Max 10MB each</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
         <p className="text-sm text-red-600 mt-2">{error}</p>
-      )}
-
-      {selectedFiles.length > 0 && (
-        <div className="mt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg">✅</span>
-            <h4 className="text-lg font-bold text-gray-900">
-              Your Photos ({selectedFiles.length}/{maxFiles})
-            </h4>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {selectedFiles.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="relative bg-white rounded-2xl p-4 border-2 border-gray-100 hover:border-primary/20 transition-colors shadow-sm"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-2 flex-shrink-0">
-                    <ImageIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {(file.size / 1024 / 1024).toFixed(1)} MB
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(index)}
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full touch-target"
-                    disabled={disabled}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );

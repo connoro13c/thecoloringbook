@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Palette, Sparkles, Bold } from 'lucide-react';
 
-export type StyleType = 'classic' | 'manga' | 'bold';
+export type StyleType = 'classic' | 'ghibli' | 'bold';
 
 interface StylePickerProps {
   value: StyleType;
@@ -22,9 +22,9 @@ const styles = [
     preview: '🎨',
   },
   {
-    id: 'manga' as const,
-    name: 'Manga Lite',
-    description: 'Anime-inspired with expressive details',
+    id: 'ghibli' as const,
+    name: 'Ghibli Style',
+    description: 'Whimsical Studio Ghibli-inspired magical details',
     icon: Sparkles,
     preview: '✨',
   },

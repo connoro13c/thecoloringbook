@@ -49,15 +49,4 @@ FOR DELETE USING (
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Function to auto-cleanup temp files older than 2 minutes
-CREATE OR REPLACE FUNCTION cleanup_temp_files()
-RETURNS void AS $$
-BEGIN
-  DELETE FROM storage.objects 
-  WHERE bucket_id = 'temp-pages' 
-  AND created_at < NOW() - INTERVAL '2 minutes';
-END;
-$$ LANGUAGE plpgsql;
-
--- Schedule cleanup to run every minute (commented for local dev)
--- SELECT cron.schedule('cleanup-temp-files', '* * * * *', 'SELECT cleanup_temp_files();');
+-- Auto-cleanup functionality removed - files persist until manually deleted
