@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY || '',
 });
 
 
@@ -29,17 +30,16 @@ async function analyseImageWithVision(
   imageUrl: string,
   userPrompt?: string
 ): Promise<ChildAttributes> {
-  const prompt = userPrompt ?? `Analyse this photo and extract key features for creating a colouring‑book page. ` +
-    `Return JSON ONLY with these exact keys (use "none" if absent):\n` +
-    JSON.stringify({
-      age: 'young child / toddler / school age',
-      hair_style: 'e.g. short curly hair, long straight hair',
-      headwear: 'e.g. baseball cap, headband, none',
-      eyewear: 'e.g. round sunglasses, glasses, none',
-      clothing: 'e.g. t‑shirt and shorts, dress with sleeves',
-      pose: 'e.g. standing with arms raised, sitting cross‑legged',
-      main_object: 'e.g. toy car, ball, none'
-    }, null, 2);
+  const prompt = userPrompt ?? `Analyse this photo and extract key features for creating a colouring‑book page. Return JSON ONLY with these exact keys (use "none" if absent):
+${JSON.stringify({
+  age: 'young child / toddler / school age',
+  hair_style: 'e.g. short curly hair, long straight hair',
+  headwear: 'e.g. baseball cap, headband, none',
+  eyewear: 'e.g. round sunglasses, glasses, none',
+  clothing: 'e.g. t‑shirt and shorts, dress with sleeves',
+  pose: 'e.g. standing with arms raised, sitting cross‑legged',
+  main_object: 'e.g. toy car, ball, none'
+}, null, 2)}`;
 
   // Build the chat payload with enforced system instruction
   const response = await openai.chat.completions.create({

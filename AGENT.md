@@ -64,7 +64,9 @@ lib/                  # Utilities & configs
 ├── utils.ts          # Utility functions
 ├── auth.ts           # Supabase Auth config
 ├── db.ts             # Supabase client
-└── stripe.ts         # Stripe config
+├── stripe.ts         # Stripe config
+├── prompt-builder.ts # AI prompt generation with difficulty/style
+└── storage.ts        # Supabase Storage helpers
 ```
 
 ## Core Features
@@ -72,8 +74,8 @@ lib/                  # Utilities & configs
 ### Anonymous Users (No Account Required)
 1. Photo upload (1-3 JPG/PNG, ≤10 MB each)
 2. Scene prompt box
-3. Style picker – "Classic Cartoon", "Manga Lite", "Bold Outlines"
-4. Difficulty slider 1-5 (controls line density)
+3. Style picker – "classic", "ghibli", "bold" 
+4. Difficulty slider 1-5 (controls line weight: 1=extra-thick, 5=extra-thin)
 5. Instant JPG generation & download (FREE)
 6. "Save this page" CTA to create account
 
@@ -188,7 +190,7 @@ pages (
 ```
 
 ## API Routes
-- `/api/v1/generate` (POST) - Generate JPG for anon or auth users
+- `/api/v1/createJob` (POST) - Generate JPG for anon or auth users with difficulty/style controls
 - `/api/v1/export-pdf` (POST, auth required) - Export PDF after Stripe payment
 - `/api/v1/my-pages` (GET, auth required) - List user's saved pages
 
