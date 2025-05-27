@@ -6,6 +6,13 @@ import OpenAI from 'openai';
 import { uploadTempPage, uploadUserPage } from '@/lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { buildColoringPrompt } from '@/lib/prompt-builder';
+import { 
+  getOrCreateSession, 
+  createUploadSession,
+  recordImageUpload,
+  recordImageAnalysis,
+  recordPageGeneration
+} from '@/lib/session-manager';
 
 
 // -------------------------------------------------------------
@@ -30,6 +37,7 @@ const CreateJobSchema = z.object({
   difficulty: z.number().int().min(1).max(5).default(3),
   orientation: z.enum(['portrait', 'landscape']).default('portrait'),
   anonymous: z.boolean().optional().default(false),
+  imageAnalysis: ChildAttributeSchema.optional(), // Optional pre-analyzed attributes
 });
 
 
@@ -128,10 +136,10 @@ ${JSON.stringify({
   return parsed;
 }
 
-async function generateImage(openai: OpenAI, imageUrls: string[], scenePrompt: string, style: string, difficulty: number, orientation: string): Promise<{imageUrl: string, imageAnalysis: ChildAttributes}> {
-  // Analyze the first uploaded image with GPT-4 Vision
-  const childAttributes = await analyseImageWithVision(openai, imageUrls[0]);
-  console.log('Image analysis:', childAttributes);
+async function generateImage(openai: OpenAI, imageUrls: string[], scenePrompt: string, style: string, difficulty: number, orientation: string, providedAnalysis?: ChildAttributes): Promise<{imageUrl: string, imageAnalysis: ChildAttributes}> {
+  // Use provided analysis or analyze the first uploaded image with GPT-4 Vision
+  const childAttributes: ChildAttributes = providedAnalysis || await analyseImageWithVision(openai, imageUrls[0]);
+  console.log('Image analysis:', childAttributes, providedAnalysis ? '(user-edited)' : '(AI-generated)');
   
   // Build the coloring prompt using structured attributes
   const coloringPrompt = buildColoringPrompt(
@@ -161,6 +169,8 @@ async function generateImage(openai: OpenAI, imageUrls: string[], scenePrompt: s
 }
 
 export async function POST(request: NextRequest) {
+  const overallStartTime = Date.now();
+  
   try {
     // Parse and validate request body first to check for anonymous flag
     const body = await request.json();
@@ -173,25 +183,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { imageUrls, scenePrompt, style, difficulty, orientation, anonymous } = validation.data;
+    const { imageUrls, scenePrompt, style, difficulty, orientation, anonymous, imageAnalysis } = validation.data;
+
+    // Get or create session for comprehensive tracking
+    const sessionInfo = await getOrCreateSession(request);
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    // Create upload session in our tracking system
+    const uploadSessionId = await createUploadSession(sessionInfo, clientIp, userAgent);
 
     // Handle authentication - only required for authenticated generation
     const supabase = await createClient();
-    let userId: string | null = null;
-    let sessionId: string | null = null;
-
-    if (!anonymous) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      
-      userId = user.id;
-    } else {
-      // Generate a temporary session ID for anonymous users
-      sessionId = uuidv4();
-    }
+    const userId: string | null = sessionInfo.userId || null;
+    const sessionId: string = sessionInfo.sessionId;
 
     // Initialize OpenAI
     const openai = new OpenAI({
@@ -199,18 +206,52 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      console.log(`Starting generation for user ${userId}`);
+      console.log(`Starting generation for ${sessionInfo.isAuthenticated ? `user ${userId}` : 'anonymous user'}`);
       const startTime = Date.now();
 
-      // Generate image with OpenAI
-      const { imageUrl, imageAnalysis } = await generateImage(openai, imageUrls, scenePrompt || '', style, difficulty, orientation);
+      // Record image upload in tracking system
+      const imageUploadId = await recordImageUpload(uploadSessionId, {
+        originalFilename: `uploaded_image_${Date.now()}.jpg`,
+        fileSizeBytes: 0, // We don't have the original file size, but track what we can
+        mimeType: 'image/jpeg',
+        storagePath: imageUrls[0], // Store the URL for now
+        storageBucket: sessionInfo.isAuthenticated ? 'user-pages' : 'temp-pages'
+      });
 
+      // Generate image with OpenAI
+      const { imageUrl, imageAnalysis: finalAnalysis } = await generateImage(openai, imageUrls, scenePrompt || '', style, difficulty, orientation, imageAnalysis);
+      const analysisTime = Date.now();
+
+      // Record image analysis in tracking system (temporarily disabled due to schema mismatch)
+      try {
+        await recordImageAnalysis(imageUploadId, {
+        analysisPrompt: `Analyse this photo and extract key features for creating a colouring‑book page. Return JSON ONLY with these exact keys (use "none" if absent):
+${JSON.stringify({
+  age: 'young child / toddler / school age',
+  hair_style: 'e.g. short curly hair, long straight hair',
+  headwear: 'e.g. baseball cap, headband, none',
+  eyewear: 'e.g. round sunglasses, glasses, none',
+  clothing: 'e.g. t‑shirt and shorts, dress with sleeves',
+  pose: 'e.g. standing with arms raised, sitting cross‑legged',
+  main_object: 'e.g. toy car, ball, none'
+}, null, 2)}`,
+        rawResponse: JSON.stringify(finalAnalysis),
+        parsedAnalysis: finalAnalysis,
+        modelUsed: 'gpt-4o-mini',
+        processingTimeMs: analysisTime - startTime
+        });
+      } catch (trackingError) {
+        console.error('Image analysis tracking failed (non-critical):', trackingError);
+        // Continue with generation even if tracking fails
+      }
+
+      // Create job in old system for backward compatibility
       let job: { id: string; user_id: string | null };
 
-      if (anonymous) {
-        job = await createAnonymousSession(supabase, sessionId as string);
+      if (anonymous || !sessionInfo.isAuthenticated) {
+        job = await createAnonymousSession(supabase, sessionId);
       } else {
-        job = await createAuthenticatedJob(supabase, userId as string, scenePrompt || '', style, difficulty, orientation, imageUrls, imageAnalysis);
+        job = await createAuthenticatedJob(supabase, userId as string, scenePrompt || '', style, difficulty, orientation, imageUrls, finalAnalysis);
       }
 
       // Download the generated image
@@ -226,9 +267,9 @@ export async function POST(request: NextRequest) {
       const filename = `${job.id}_output.png`;
       let uploadResult: { url?: string; signedUrl?: string; path: string };
 
-      if (anonymous) {
+      if (anonymous || !sessionInfo.isAuthenticated) {
         uploadResult = await uploadTempPage(
-          sessionId as string,
+          sessionId,
           filename,
           imageData,
           { contentType: 'image/png' }
@@ -243,6 +284,24 @@ export async function POST(request: NextRequest) {
       }
 
       const processingTime = Date.now() - startTime;
+
+      // Record page generation in tracking system 
+      try {
+        const generatedPrompt = buildColoringPrompt(finalAnalysis, scenePrompt || '', difficulty, style);
+        await recordPageGeneration(uploadSessionId, {
+          userPrompt: scenePrompt,
+          style,
+          difficulty,
+          generatedPrompt,
+          dalleResponseUrl: imageUrl,
+          storagePath: uploadResult.path,
+          modelUsed: 'dall-e-3',
+          processingTimeMs: processingTime
+        });
+      } catch (trackingError) {
+        console.error('Page generation tracking failed (non-critical):', trackingError);
+        // Continue with generation even if tracking fails
+      }
 
       // Update job with success (only for authenticated users)
       if (!anonymous) {
@@ -260,16 +319,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      console.log(`Generated coloring page for ${anonymous ? 'anonymous user' : `user ${userId}`}`);
+      console.log(`Generated coloring page for ${sessionInfo.isAuthenticated ? `user ${userId}` : 'anonymous user'}`);
 
       return NextResponse.json({
         success: true,
         jobId: job.id,
+        sessionId: sessionInfo.sessionId,
         status: 'COMPLETED',
         imageUrl: uploadResult.url || uploadResult.signedUrl,
         imageAnalysis: imageAnalysis,
         message: 'Coloring page generated successfully',
-        ...(anonymous && { sessionId }),
+        isAuthenticated: sessionInfo.isAuthenticated,
+        processingTimeMs: processingTime
       });
 
     } catch (generationError) {

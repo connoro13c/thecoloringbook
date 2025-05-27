@@ -2,6 +2,10 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { 
+  getOrCreateSession, 
+  recordImageAnalysis 
+} from '@/lib/session-manager';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -76,8 +80,10 @@ ${JSON.stringify({
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
-    const { imageUrl } = await request.json();
+    const { imageUrl, imageUploadId } = await request.json();
 
     if (!imageUrl) {
       return NextResponse.json(
@@ -86,11 +92,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get or create session for tracking
+    const sessionInfo = await getOrCreateSession(request);
+
     const analysis = await analyseImageWithVision(imageUrl);
+    const processingTime = Date.now() - startTime;
+
+    // Record the analysis in our tracking system
+    if (imageUploadId) {
+      try {
+        await recordImageAnalysis(imageUploadId, {
+          analysisPrompt: `Analyse this photo and extract key features for creating a colouring‑book page. Return JSON ONLY with these exact keys (use "none" if absent):
+${JSON.stringify({
+  age: 'young child / toddler / school age',
+  hair_style: 'e.g. short curly hair, long straight hair',
+  headwear: 'e.g. baseball cap, headband, none',
+  eyewear: 'e.g. round sunglasses, glasses, none',
+  clothing: 'e.g. t‑shirt and shorts, dress with sleeves',
+  pose: 'e.g. standing with arms raised, sitting cross‑legged',
+  main_object: 'e.g. toy car, ball, none'
+}, null, 2)}`,
+          rawResponse: JSON.stringify(analysis),
+          parsedAnalysis: analysis,
+          modelUsed: 'gpt-4o-mini',
+          processingTimeMs: processingTime
+        });
+      } catch (trackingError) {
+        console.error('Failed to record image analysis:', trackingError);
+        // Don't fail the request if tracking fails
+      }
+    }
 
     return NextResponse.json({
       analysis,
-      attributes: analysis
+      attributes: analysis,
+      sessionId: sessionInfo.sessionId
     });
 
   } catch (error) {

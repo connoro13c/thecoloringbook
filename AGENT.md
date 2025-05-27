@@ -13,8 +13,9 @@
 - **Auth**: Supabase Auth (social logins, magic links)
 - **File Storage**: Supabase Storage
 - **Backend**: Next.js API routes
-- **AI**: OpenAI (DALL-E 3)
+- **AI**: OpenAI (DALL-E 3, GPT-4o)
 - **Database**: Supabase (Postgres + RLS)
+- **Queue**: Custom Supabase Postgres-based queue
 - **Payments**: Stripe + Stripe Radar
 - **Hosting**: Local development on port 3000
 
@@ -50,23 +51,210 @@ rm -rf .next && npm run dev
 
 ## Project Structure
 ```
-app/                    # Next.js 15 app router
-├── api/v1/            # Versioned API routes
-├── (auth)/            # Auth route groups
-└── globals.css        # Global styles
+.
+├── .env.local
+├── .env.production
+├── .github
+│   ├── lighthouse
+│   │   └── lighthouserc.json
+│   └── workflows
+│       └── ci.yml
+├── .gitignore
+├── .npmrc
+├── .prettierrc
+├── .vercel
+│   ├── project.json
+│   └── README.txt
+├── AGENT.md
+├── AGENT.md.bak
+├── app                     # Next.js 15 app router
+│   ├── {auth}
+│   ├── api
+│   │   ├── cron
+│   │   │   ├── cleanup-expired-data
+│   │   │   │   └── route.ts
+│   │   │   └── process-queue
+│   │   │       └── route.ts
+│   │   ├── debug
+│   │   │   └── tables
+│   │   │       └── route.ts
+│   │   ├── health
+│   │   │   └── route.ts
+│   │   ├── setup
+│   │   │   └── tracking
+│   │   ├── stripe-webhook
+│   │   │   └── route.ts
+│   │   ├── v1              # Versioned API routes
+│   │   │   ├── .gitkeep
+│   │   │   ├── analytics
+│   │   │   │   ├── comprehensive
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── long-tasks
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── performance
+│   │   │   │       └── route.ts
+│   │   │   ├── analyze-image
+│   │   │   │   └── route.ts
+│   │   │   ├── checkout
+│   │   │   │   └── route.ts
+│   │   │   ├── create-checkout-session
+│   │   │   │   └── route.ts
+│   │   │   ├── createJob
+│   │   │   │   └── route.ts
+│   │   │   ├── download
+│   │   │   │   └── [jobId]
+│   │   │   │       └── route.ts
+│   │   │   ├── export-pdf
+│   │   │   │   └── route.ts
+│   │   │   ├── generate
+│   │   │   │   └── route.ts
+│   │   │   ├── health
+│   │   │   │   └── route.ts
+│   │   │   ├── job
+│   │   │   │   └── [id]
+│   │   │   │       └── route.ts
+│   │   │   ├── jobs
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── make-pdf
+│   │   │   │   └── route.ts
+│   │   │   ├── my-pages
+│   │   │   │   └── route.ts
+│   │   │   ├── queue
+│   │   │   │   └── route.ts
+│   │   │   ├── status
+│   │   │   │   └── route.ts
+│   │   │   ├── upload
+│   │   │   │   └── route.ts
+│   │   │   ├── user
+│   │   │   │   └── jobs
+│   │   │   │       └── route.ts
+│   │   │   └── worker
+│   │   │       └── route.ts
+│   │   └── webhooks
+│   │       └── stripe
+│   │           └── route.ts
+│   ├── auth
+│   │   └── page.tsx
+│   ├── dashboard
+│   │   └── page.tsx
+│   ├── globals.css         # Global styles
+│   ├── layout.tsx
+│   ├── page.tsx
+│   ├── status
+│   │   └── page.tsx
+│   └── upload
+│       └── page.tsx
+├── components              # Atomic → composite pattern
+│   ├── forms               # Form components
+│   │   ├── .gitkeep
+│   │   ├── DifficultySlider.tsx
+│   │   ├── EditableAnalysis.tsx
+│   │   ├── GenerateForm.tsx
+│   │   ├── OrientationPicker.tsx
+│   │   ├── PaymentFlow.tsx
+│   │   ├── PhotoUpload.tsx
+│   │   ├── ScenePrompt.tsx
+│   │   └── StylePicker.tsx
+│   ├── layout              # Layout components
+│   │   ├── .gitkeep
+│   │   ├── header.tsx
+│   │   └── PerformanceMonitoring.tsx
+│   └── ui                  # shadcn/ui components
+│       ├── alert.tsx
+│       ├── badge.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── ImagePreview.tsx
+│       ├── input.tsx
+│       ├── JobProgress.tsx
+│       ├── label.tsx
+│       ├── PaymentButton.tsx
+│       ├── PricingCard.tsx
+│       ├── progress.tsx
+│       ├── QueueStatus.tsx
+│       ├── radio-group.tsx
+│       ├── slider.tsx
+│       └── textarea.tsx
+├── components.json
+├── eslint.config.mjs
+├── lib                     # Utilities & configs
+│   ├── api.ts              # API utilities
+│   ├── auth-server.ts      # Server-side auth
+│   ├── auth-utils.ts       # Auth utilities
+│   ├── auth.ts             # Supabase Auth config
+│   ├── db.ts               # Supabase client
+│   ├── hooks               # React hooks
+│   │   ├── useJobPolling.ts
+│   │   ├── useJobs.ts
+│   │   └── useJobStatus.ts
+│   ├── monitoring.ts       # Performance monitoring
+│   ├── pdf.ts              # PDF generation
+│   ├── prompt-builder.ts   # AI prompt generation with difficulty/style
+│   ├── queue.ts            # Database queue system
+│   ├── rate-limit.ts       # Rate limiting
+│   ├── session-manager.ts  # Session management
+│   ├── storage.ts          # Supabase Storage helpers
+│   ├── stripe.ts           # Stripe config
+│   ├── utils.ts            # Utility functions
+│   ├── validation.ts       # Input validation
+│   └── worker.ts           # Background job processing
+├── middleware.ts
+├── next-env.d.ts
+├── next.config.js
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── PHASE7-SUMMARY.md
+├── postcss.config.mjs
+├── public                  # Static assets
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── README.md
+├── RUNBOOK.md
+├── scripts                 # Database scripts & utilities
+│   ├── add-image-analysis-column.sql
+│   ├── comprehensive-tracking-schema-fixed.sql
+│   ├── comprehensive-tracking-schema.sql
+│   ├── create-image-analyses-table.sql
+│   ├── create-tracking-tables.sql
+│   ├── debug-image-analyses.sql
+│   ├── debug-style-enum.sql
+│   ├── fix-ghibli-enum.sql
+│   ├── fix-image-analyses-schema.sql
+│   ├── fix-tracking-tables.sql
+│   ├── setup-database-clean.sql
+│   ├── setup-database.sql
+│   ├── setup-queue.sql
+│   ├── setup-storage.sql
+│   ├── simple-add-ghibli.sql
+│   ├── simple-tracking-migration.sql
+│   ├── start.sh
+│   ├── step-by-step-migration.sql
+│   └── verify-env.js
+├── tailwind.config.ts
+├── temp_backup             # Temporary backups
+│   ├── stripe-webhook
+│   └── stripe-webhook-backup.ts
+├── tests                   # Load testing & performance
+│   └── load
+│       ├── audit-runner.sh
+│       ├── payment-flow.js
+│       ├── performance-audit.js
+│       ├── README.md
+│       ├── run-tests.sh
+│       ├── security-audit.js
+│       ├── stress-test.js
+│       └── upload-flow.js
+├── tsconfig.json
+├── tsconfig.tsbuildinfo
+└── vercel.json
 
-components/            # Atomic → composite pattern
-├── ui/               # shadcn/ui components
-├── forms/            # Form components
-└── layout/           # Layout components
-
-lib/                  # Utilities & configs
-├── utils.ts          # Utility functions
-├── auth.ts           # Supabase Auth config
-├── db.ts             # Supabase client
-├── stripe.ts         # Stripe config
-├── prompt-builder.ts # AI prompt generation with difficulty/style
-└── storage.ts        # Supabase Storage helpers
+61 directories, 141 files
 ```
 
 ## Core Features

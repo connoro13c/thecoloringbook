@@ -10,6 +10,7 @@ import ScenePrompt from '@/components/forms/ScenePrompt'
 import StylePicker, { type StyleType } from '@/components/forms/StylePicker'
 import DifficultySlider from '@/components/forms/DifficultySlider'
 import OrientationPicker from '@/components/forms/OrientationPicker'
+import EditableAnalysis from '@/components/forms/EditableAnalysis'
 import { type ChildAttributes } from '@/lib/prompt-builder'
 
 interface UploadResult {
@@ -140,6 +141,7 @@ export default function Home() {
           difficulty,
           orientation,
           anonymous: !user, // Flag for anonymous generation
+          imageAnalysis, // Pass the current (possibly edited) analysis
         }),
       })
 
@@ -245,7 +247,7 @@ export default function Home() {
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-white/20">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  🚀 Start Creating Now
+                  Let’s Create
                 </h2>
                 <p className="text-gray-600">
                   Upload your photos and create amazing coloring pages instantly!
@@ -326,7 +328,7 @@ export default function Home() {
                             className="w-full py-3 text-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                             size="lg"
                           >
-                            {isGenerating ? 'Creating Your Coloring Page...' : '🎨 Generate Coloring Page'}
+                            {isGenerating ? 'Creating Your Coloring Page...' : '🎨 Create Coloring Page'}
                           </Button>
                         </div>
                       )}
@@ -354,20 +356,10 @@ export default function Home() {
                         ))}
                       </div>
                       {imageAnalysis && (
-                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                          <h4 className="text-sm font-medium text-blue-900 mb-2">
-                            What our AI sees in your photo:
-                          </h4>
-                          <div className="text-sm text-blue-800 space-y-1">
-                            <div><strong>Age:</strong> {imageAnalysis.age}</div>
-                            <div><strong>Hair:</strong> {imageAnalysis.hair_style}</div>
-                            {imageAnalysis.headwear !== 'none' && <div><strong>Headwear:</strong> {imageAnalysis.headwear}</div>}
-                            {imageAnalysis.eyewear !== 'none' && <div><strong>Eyewear:</strong> {imageAnalysis.eyewear}</div>}
-                            <div><strong>Clothing:</strong> {imageAnalysis.clothing}</div>
-                            <div><strong>Pose:</strong> {imageAnalysis.pose}</div>
-                            {imageAnalysis.main_object !== 'none' && <div><strong>Main object:</strong> {imageAnalysis.main_object}</div>}
-                          </div>
-                        </div>
+                        <EditableAnalysis
+                          analysis={imageAnalysis}
+                          onUpdate={setImageAnalysis}
+                        />
                       )}
                       <p className="text-sm text-green-600 mt-2">
                         Now configure your coloring page settings and click &quot;Generate&quot;
