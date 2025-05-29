@@ -1,0 +1,128 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { analyzePhoto } from '@/lib/ai/photo-analysis'
+import { buildDallePrompt } from '@/lib/ai/prompt-builder'
+import { generateColoringPage, downloadImage } from '@/lib/ai/dalle-generation'
+import { uploadToStorage, generateFilename } from '@/lib/storage'
+import type { ColoringStyle } from '@/components/forms/StyleSelection'
+
+// Request validation schema
+const CreateJobSchema = z.object({
+  photo: z.string().min(1, 'Photo is required'),
+  sceneDescription: z.string().min(1, 'Scene description is required'),
+  style: z.enum(['classic', 'ghibli', 'mandala']),
+  difficulty: z.number().min(1).max(5).default(3)
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('🚀 Starting coloring page generation...')
+
+    // Parse and validate request
+    const body = await request.json()
+    const { photo, sceneDescription, style, difficulty } = CreateJobSchema.parse(body)
+
+    // Extract base64 data from data URL
+    const base64Data = photo.replace(/^data:image\/[a-z]+;base64,/, '')
+    
+    console.log('📊 Request details:', {
+      sceneDescription: sceneDescription.substring(0, 50) + '...',
+      style,
+      difficulty,
+      photoSize: base64Data.length
+    })
+
+    // Step 1: Analyze the photo with GPT-4o Vision
+    console.log('👁️ Step 1: Analyzing photo with GPT-4o Vision...')
+    const photoAnalysis = await analyzePhoto(base64Data)
+    
+    console.log('✅ Photo analysis complete:', {
+      childAge: photoAnalysis.child.age,
+      complexity: photoAnalysis.suggestions.coloringComplexity,
+      elements: photoAnalysis.suggestions.recommendedElements.slice(0, 3)
+    })
+
+    // Step 2: Build the perfect prompt
+    console.log('📝 Step 2: Building optimized prompt...')
+    const dallePrompt = buildDallePrompt({
+      photoAnalysis,
+      sceneDescription,
+      style: style as ColoringStyle,
+      difficulty
+    })
+
+    // Step 3: Generate with DALL-E 3
+    console.log('🎨 Step 3: Generating with DALL-E 3...')
+    const generationResult = await generateColoringPage(dallePrompt)
+    
+    console.log('✅ Generation successful')
+    if (generationResult.revisedPrompt) {
+      console.log('📝 DALL-E revised prompt:', generationResult.revisedPrompt.substring(0, 100) + '...')
+    }
+
+    // Step 4: Download and store the image
+    console.log('💾 Step 4: Downloading and storing image...')
+    const imageBuffer = await downloadImage(generationResult.imageUrl)
+    
+    const filename = generateFilename('coloring')
+    const storageResult = await uploadToStorage(imageBuffer, filename, 'image/png')
+    
+    console.log('✅ Storage complete:', storageResult.publicUrl)
+
+    // Step 5: Return success response
+    const response = {
+      success: true,
+      data: {
+        imageUrl: storageResult.publicUrl,
+        imagePath: storageResult.path,
+        analysis: photoAnalysis,
+        prompt: dallePrompt,
+        revisedPrompt: generationResult.revisedPrompt,
+        metadata: {
+          style,
+          difficulty,
+          sceneDescription,
+          generatedAt: new Date().toISOString()
+        }
+      }
+    }
+
+    console.log('🎉 Generation pipeline complete!')
+    return NextResponse.json(response)
+
+  } catch (error) {
+    console.error('❌ Generation failed:', error)
+    
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Invalid request data',
+          details: error.errors 
+        },
+        { status: 400 }
+      )
+    }
+
+    // Handle known errors with user-friendly messages
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: errorMessage 
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// Health check endpoint
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'healthy',
+    service: 'coloring-page-generation',
+    timestamp: new Date().toISOString()
+  })
+}
