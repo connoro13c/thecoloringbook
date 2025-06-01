@@ -8,12 +8,6 @@ export interface PhotoAnalysis {
     clothing: string
     expression: string
   }
-  setting: {
-    location: string
-    background: string
-    lighting: string
-    objects: string[]
-  }
   composition: {
     pose: string
     perspective: string
