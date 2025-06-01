@@ -28,3 +28,24 @@ export async function createClient() {
     }
   )
 }
+
+/**
+ * Create a service role client that bypasses RLS
+ * Use this for admin operations or anonymous user data
+ */
+export function createServiceClient() {
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return []
+        },
+        setAll() {
+          // No cookies needed for service role
+        },
+      },
+    }
+  )
+}

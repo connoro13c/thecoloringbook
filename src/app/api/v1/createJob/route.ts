@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { analyzePhoto } from '@/lib/ai/photo-analysis'
 import { buildDallePrompt } from '@/lib/ai/prompt-builder'
-import { generateColoringPage, downloadImage } from '@/lib/ai/dalle-generation'
+import { generateColoringPage, downloadImage } from '@/lib/ai/image-generation'
 import { uploadToStorage, generateFilename } from '@/lib/storage'
+import { createPage } from '@/lib/database'
+import { createClient } from '@/lib/supabase/server'
 import type { ColoringStyle } from '@/components/forms/StyleSelection'
 
 // Request validation schema
@@ -38,8 +40,12 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ Photo analysis complete:', {
       childAge: photoAnalysis.child.age,
+      appearance: photoAnalysis.child.appearance.substring(0, 60) + '...',
       complexity: photoAnalysis.suggestions.coloringComplexity,
-      elements: photoAnalysis.suggestions.recommendedElements.slice(0, 3)
+      elements: photoAnalysis.suggestions.recommendedElements.slice(0, 3),
+      // Check if this is fallback data (contains default text)
+      usingFallback: photoAnalysis.child.age === '6-8 years old' && 
+                    photoAnalysis.child.appearance.includes('shoulder-length hair, bright eyes')
     })
 
     // Step 2: Build the perfect prompt
@@ -51,13 +57,13 @@ export async function POST(request: NextRequest) {
       difficulty
     })
 
-    // Step 3: Generate with DALL-E 3
-    console.log('🎨 Step 3: Generating with DALL-E 3...')
+    // Step 3: Generate with gpt-image-1
+    console.log('🎨 Step 3: Generating with gpt-image-1...')
     const generationResult = await generateColoringPage(dallePrompt)
     
     console.log('✅ Generation successful')
     if (generationResult.revisedPrompt) {
-      console.log('📝 DALL-E revised prompt:', generationResult.revisedPrompt.substring(0, 100) + '...')
+      console.log('📝 gpt-image-1 revised prompt:', generationResult.revisedPrompt.substring(0, 100) + '...')
     }
 
     // Step 4: Download and store the image
@@ -69,10 +75,29 @@ export async function POST(request: NextRequest) {
     
     console.log('✅ Storage complete:', storageResult.publicUrl)
 
-    // Step 5: Return success response
+    // Step 5: Save to database with analysis output
+    console.log('💾 Step 5: Saving page to database...')
+    
+    // Get current user if authenticated
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const pageRecord = await createPage({
+      user_id: user?.id,
+      prompt: dallePrompt,
+      style,
+      difficulty,
+      jpg_path: storageResult.path
+      // analysis_output: photoAnalysis // TODO: Add this column to database
+    })
+    
+    console.log('✅ Page saved to database:', pageRecord.id)
+
+    // Step 6: Return success response
     const response = {
       success: true,
       data: {
+        pageId: pageRecord.id,
         imageUrl: storageResult.publicUrl,
         imagePath: storageResult.path,
         analysis: photoAnalysis,

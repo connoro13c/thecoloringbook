@@ -10,5 +10,5 @@ export const openai = new OpenAI({
 
 export const OPENAI_MODELS = {
   VISION: 'gpt-4o',
-  DALLE: 'dall-e-3',
+  ImageGen: 'gpt-image-1',  
 } as const
