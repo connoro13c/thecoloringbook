@@ -6,17 +6,57 @@ import { PhotoUpload } from '@/components/forms/PhotoUpload'
 import { SceneDescription } from '@/components/forms/SceneDescription'
 import { StyleSelection, type ColoringStyle } from '@/components/forms/StyleSelection'
 import { Button } from '@/components/ui/button'
+import { type PhotoAnalysis } from '@/lib/ai/photo-analysis'
 
 export default function Home() {
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
   const [sceneDescription, setSceneDescription] = useState('')
   const [selectedStyle, setSelectedStyle] = useState<ColoringStyle | null>(null)
 
+  // Photo analysis state
+  const [photoAnalysis, setPhotoAnalysis] = useState<PhotoAnalysis | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+
   const canGenerate = selectedPhoto && sceneDescription.trim() && selectedStyle
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const handlePhotoAnalysis = async (file: File) => {
+    try {
+      setIsAnalyzing(true)
+      setAnalysisError(null)
+      console.log('🔍 Starting photo analysis after upload...')
+      
+      const { fileToBase64, analyzePhoto } = await import('@/lib/api')
+      const photoBase64 = await fileToBase64(file)
+      const analysis = await analyzePhoto(photoBase64)
+      
+      setPhotoAnalysis(analysis)
+      console.log('✅ Photo analysis complete:', analysis)
+    } catch (err) {
+      console.error('❌ Photo analysis failed:', err)
+      setAnalysisError('Analysis failed - will analyze during generation')
+      // Don't throw - we'll fall back to analyzing during generation
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const handlePhotoSelect = async (file: File | null) => {
+    setSelectedPhoto(file)
+    
+    // Reset analysis state when photo changes
+    setPhotoAnalysis(null)
+    setAnalysisError(null)
+    
+    // Start analysis if we have a new photo
+    if (file) {
+      await handlePhotoAnalysis(file)
+    }
+  }
 
   const handleGenerate = async () => {
     if (!canGenerate || !selectedPhoto) return
@@ -35,7 +75,8 @@ export default function Home() {
         photo: photoBase64,
         sceneDescription,
         style: selectedStyle!,
-        difficulty: 3
+        difficulty: 3,
+        photoAnalysis: photoAnalysis || undefined // Pass pre-analysis if available
       })
       
       if (response.success && response.data) {
@@ -64,8 +105,11 @@ export default function Home() {
           {/* Step 1: Photo Upload */}
           <div className="mb-12">
             <PhotoUpload 
-              onPhotoSelect={setSelectedPhoto}
+              onPhotoSelect={handlePhotoSelect}
               selectedPhoto={selectedPhoto}
+              isAnalyzing={isAnalyzing}
+              analysisComplete={!!photoAnalysis}
+              analysisError={analysisError}
             />
           </div>
 
@@ -191,6 +235,8 @@ export default function Home() {
                       setSceneDescription('')
                       setSelectedStyle(null)
                       setError(null)
+                      setPhotoAnalysis(null)
+                      setAnalysisError(null)
                     }}
                     variant="outline"
                   >

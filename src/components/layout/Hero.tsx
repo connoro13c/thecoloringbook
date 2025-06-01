@@ -63,11 +63,7 @@ export function Hero() {
           Create Your Coloring Page
         </Button>
 
-        {/* Decorative elements */}
-        <div className="absolute top-20 left-10 w-4 h-4 bg-secondary-rose/60 rounded-full blur-sm animate-pulse" />
-        <div className="absolute top-40 right-16 w-6 h-6 bg-accent-aqua/60 rounded-full blur-sm animate-pulse delay-300" />
-        <div className="absolute bottom-32 left-20 w-3 h-3 bg-primary-indigo/60 rounded-full blur-sm animate-pulse delay-700" />
-        <div className="absolute bottom-20 right-10 w-5 h-5 bg-secondary-rose/40 rounded-full blur-sm animate-pulse delay-1000" />
+
       </div>
     </section>
   )

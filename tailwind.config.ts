@@ -17,8 +17,8 @@ const config: Config = {
         'neutral-slate': '#404040',   // Rich Slate
       },
       fontFamily: {
-        'playfair': ['Playfair Display', 'serif'],
-        'lato': ['Lato', 'sans-serif'],
+        'playfair': ['var(--font-playfair)', 'Playfair Display', 'serif'],
+        'lato': ['var(--font-lato)', 'Lato', 'sans-serif'],
       },
       backgroundImage: {
         'watercolor-gradient': 'linear-gradient(135deg, #FCF8F3 0%, #7FBEBE 50%, #5B6ABF 100%)',

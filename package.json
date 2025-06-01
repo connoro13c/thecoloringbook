@@ -33,6 +33,7 @@
     "clsx": "^2.1.1",
     "eslint": "^9.27.0",
     "eslint-config-next": "^15.3.2",
+    "framer-motion": "^12.15.0",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",
     "openai": "^4.103.0",
