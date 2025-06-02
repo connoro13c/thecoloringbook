@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { analyzePhoto, type PhotoAnalysis } from '@/lib/ai/photo-analysis'
+import { analyzePhoto } from '@/lib/ai/photo-analysis'
 import { buildDallePrompt } from '@/lib/ai/prompt-builder'
 import { generateColoringPage, downloadImage } from '@/lib/ai/image-generation'
 import { uploadToStorage, generateFilename } from '@/lib/storage'
@@ -13,26 +13,7 @@ const CreateJobSchema = z.object({
   photo: z.string().min(1, 'Photo is required'),
   sceneDescription: z.string().min(1, 'Scene description is required'),
   style: z.enum(['classic', 'ghibli', 'mandala']),
-  difficulty: z.number().min(1).max(5).default(3),
-  // Optional pre-analyzed photo data
-  photoAnalysis: z.object({
-    child: z.object({
-      age: z.string(),
-      gender: z.string(),
-      appearance: z.string(),
-      clothing: z.string(),
-      expression: z.string()
-    }),
-    composition: z.object({
-      pose: z.string(),
-      perspective: z.string(),
-      focus: z.string()
-    }),
-    suggestions: z.object({
-      coloringComplexity: z.enum(['simple', 'medium', 'complex']),
-      recommendedElements: z.array(z.string())
-    })
-  }).optional()
+  difficulty: z.number().min(1).max(5).default(3)
 })
 
 export async function POST(request: NextRequest) {
@@ -41,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request
     const body = await request.json()
-    const { photo, sceneDescription, style, difficulty, photoAnalysis: preAnalysis } = CreateJobSchema.parse(body)
+    const { photo, sceneDescription, style, difficulty } = CreateJobSchema.parse(body)
 
     // Extract base64 data from data URL
     const base64Data = photo.replace(/^data:image\/[a-z]+;base64,/, '')
@@ -53,23 +34,15 @@ export async function POST(request: NextRequest) {
       photoSize: base64Data.length
     })
 
-    // Step 1: Analyze the photo with GPT-4o Vision (or use pre-analysis)
-    let photoAnalysis: PhotoAnalysis
+    // Step 1: Analyze the photo with GPT-4o Vision
+    console.log('👁️ Step 1: Analyzing photo with GPT-4o Vision...')
+    const photoAnalysis = await analyzePhoto(base64Data)
     
-    if (preAnalysis) {
-      console.log('✅ Using pre-analyzed photo data (skipping analysis step)')
-      photoAnalysis = preAnalysis
-    } else {
-      console.log('👁️ Step 1: Analyzing photo with GPT-4o Vision...')
-      photoAnalysis = await analyzePhoto(base64Data)
-    }
-    
-    console.log('✅ Photo analysis ready:', {
+    console.log('✅ Photo analysis complete:', {
       childAge: photoAnalysis.child.age,
       appearance: photoAnalysis.child.appearance.substring(0, 60) + '...',
       complexity: photoAnalysis.suggestions.coloringComplexity,
       elements: photoAnalysis.suggestions.recommendedElements.slice(0, 3),
-      source: preAnalysis ? 'pre-analyzed' : 'fresh-analysis',
       // Check if this is fallback data (contains default text)
       usingFallback: photoAnalysis.child.age === '6-8 years old' && 
                     photoAnalysis.child.appearance.includes('shoulder-length hair, bright eyes')

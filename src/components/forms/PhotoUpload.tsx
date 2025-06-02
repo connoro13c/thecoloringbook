@@ -1,26 +1,20 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { useDropzone, FileRejection } from 'react-dropzone'
+import { useDropzone } from 'react-dropzone'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { X, Upload, Image } from 'lucide-react'
-import { UploadAnimation } from './UploadAnimation'
-import { useUploadAnimation } from '@/lib/hooks/useUploadAnimation'
 
 interface PhotoUploadProps {
   onPhotoSelect: (file: File) => void
   selectedPhoto: File | null
-  isAnalyzing?: boolean
-  analysisComplete?: boolean
-  analysisError?: string | null
 }
 
-export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysisComplete, analysisError }: PhotoUploadProps) {
+export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) {
   const [error, setError] = useState<string | null>(null)
-  const { animationState, startAnimation, onAnimationComplete } = useUploadAnimation()
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
     setError(null)
     
     if (rejectedFiles.length > 0) {
@@ -36,18 +30,9 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysi
     }
 
     if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0]
-      const imageUrl = URL.createObjectURL(file)
-      
-      // Start the animation first
-      startAnimation(imageUrl)
-      
-      // After animation completes, call the parent callback
-      setTimeout(() => {
-        onPhotoSelect(file)
-      }, 3500) // Slightly longer than animation duration
+      onPhotoSelect(acceptedFiles[0])
     }
-  }, [onPhotoSelect, startAnimation])
+  }, [onPhotoSelect])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -61,7 +46,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysi
   })
 
   const removePhoto = () => {
-    onPhotoSelect(null as unknown as File)
+    onPhotoSelect(null as any)
     setError(null)
   }
 
@@ -93,27 +78,6 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysi
             {selectedPhoto.name} ({(selectedPhoto.size / 1024 / 1024).toFixed(1)}MB)
           </p>
           
-          {/* Analysis Status */}
-          <div className="mt-4">
-            {isAnalyzing && (
-              <div className="flex items-center justify-center space-x-2 text-primary-indigo">
-                <div className="w-4 h-4 border-2 border-primary-indigo/20 border-t-primary-indigo rounded-full animate-spin" />
-                <span className="text-sm font-medium">Analyzing photo...</span>
-              </div>
-            )}
-            
-            {analysisComplete && !analysisError && (
-              <div className="flex items-center justify-center space-x-2 text-accent-aqua">
-                <div className="w-4 h-4 bg-accent-aqua rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">✓</span>
-                </div>
-                <span className="text-sm font-medium">Ready to generate</span>
-              </div>
-            )}
-            
-
-          </div>
-          
           <Button
             onClick={removePhoto}
             variant="outline"
@@ -134,7 +98,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysi
         </h2>
         
         <p className="text-lg text-neutral-slate/80 mb-8 max-w-md mx-auto">
-          Choose a clear, well-lit photo for best results.
+          Choose a clear, well-lit photo. One child per photo recommended for best results.
         </p>
 
         <div
@@ -187,13 +151,6 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto, isAnalyzing, analysi
           Supported formats: JPG, PNG • Maximum size: 10MB
         </div>
       </div>
-      
-      {/* Upload Animation Overlay */}
-      <UploadAnimation
-        imageUrl={animationState.imageUrl || ''}
-        isVisible={animationState.isVisible}
-        onAnimationComplete={onAnimationComplete}
-      />
     </Card>
   )
 }

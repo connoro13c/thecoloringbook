@@ -45,7 +45,7 @@ export function Hero() {
         </h1>
         
         <p className="font-lato text-xl md:text-2xl text-neutral-slate/80 mb-8 max-w-2xl mx-auto leading-relaxed">
-          Instantly create personalized, printable coloring pages from your child&apos;s photos.
+          Instantly create personalized, printable black and white coloring pages with your child&apos;s photos.
         </p>
 
         <Button 

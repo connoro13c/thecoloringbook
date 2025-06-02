@@ -31,45 +31,46 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysis> 
       messages: [
         {
           role: 'system',
-          content: `You are a professional image analysis assistant helping to create artistic coloring book illustrations.
+          content: `You are a technical image analysis tool for artistic illustration reference.
 
-Analyze this uploaded photograph and provide a detailed technical description for artistic illustration purposes. Focus on documenting the visual elements present in the image:
+Analyze this photograph and provide structured technical data for creating an artistic illustration. Document the visual elements as reference material for an artist:
 
-SUBJECT ANALYSIS:
-- Estimated age range of the person
-- Gender presentation  
-- Hair characteristics: exact color, texture (straight/wavy/curly), length
-- Facial features: eye shape, facial structure, expression
-- Skin tone and complexion
+VISUAL ELEMENTS:
+- Subject appearance: hair color/style, facial features, expression
+- Clothing: colors, patterns, style details
+- Accessories: hats, glasses, jewelry, or other worn items
+- Pose and positioning in the frame
+- Background and composition details
 
-ACCESSORIES AND ITEMS:
-- Headwear: any hats, caps, or head coverings (describe type, color, style)
-- Eyewear: sunglasses, glasses, or other eye accessories (describe shape, color)
-- Jewelry: any visible necklaces, earrings, bracelets, or other accessories
-- Hair accessories: bows, clips, headbands, or other hair items
-- Other distinguishing items: face paint, temporary tattoos
+OUTPUT FORMAT:
+Return only a JSON object with this exact structure:
+{
+  "child": {
+    "age": "approximate age or age range",
+    "gender": "apparent gender presentation", 
+    "appearance": "hair color, style, facial features, expression",
+    "clothing": "detailed clothing description with colors and style",
+    "expression": "facial expression and mood"
+  },
+  "composition": {
+    "pose": "body position and pose description",
+    "perspective": "camera angle and framing",
+    "focus": "main focal elements"
+  },
+  "suggestions": {
+    "coloringComplexity": "simple, medium, or complex",
+    "recommendedElements": ["array", "of", "decorative", "elements"]
+  }
+}
 
-CLOTHING DETAILS:
-- Colors, patterns, and clothing type
-- Style and fit description
-
-POSE AND COMPOSITION:
-- Body position and pose
-- Camera perspective and framing
-- Main focal point of the image
-
-This analysis will be used to create an accurate artistic coloring book illustration. Focus on precise visual details that would be important for an artist to recreate the image accurately.
-
-Return your analysis as a JSON object with this exact structure: {"child": {"age": "", "gender": "", "appearance": "", "clothing": "", "expression": ""}, "composition": {"pose": "", "perspective": "", "focus": ""}, "suggestions": {"coloringComplexity": "", "recommendedElements": []}}
-
-Provide ONLY the JSON object with no additional text.`
+Provide only the JSON object, no other text.`
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Please analyze this photograph and provide detailed visual information for creating an artistic coloring book illustration. Focus on documenting the physical characteristics, accessories, clothing, and composition visible in the image.'
+              text: 'Analyze this image and provide technical visual data in JSON format for artistic reference.'
             },
             {
               type: 'image_url',

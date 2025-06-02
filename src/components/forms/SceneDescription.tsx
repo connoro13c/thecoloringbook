@@ -16,7 +16,7 @@ export function SceneDescription({ value, onChange }: SceneDescriptionProps) {
           Describe the Adventure
         </h2>
         <p className="text-lg text-neutral-slate/80 max-w-md mx-auto">
-          What magical scene would you like to create with your child?
+          What scene would you like to create with your child?
         </p>
       </div>
 
