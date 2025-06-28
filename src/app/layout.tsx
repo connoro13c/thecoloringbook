@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import '../styles/coloring-image.css'
 
 export const metadata: Metadata = {
   title: 'The Coloring Book - Personalized AI Coloring Pages',

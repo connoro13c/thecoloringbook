@@ -1,30 +1,4 @@
-import type { ColoringStyle } from '@/components/forms/StyleSelection'
-
-export interface GenerationRequest {
-  photo: string // base64 data URL
-  sceneDescription: string
-  style: ColoringStyle
-  difficulty?: number
-}
-
-export interface GenerationResponse {
-  success: boolean
-  data?: {
-    imageUrl: string
-    imagePath: string
-    analysis: any
-    prompt: string
-    revisedPrompt?: string
-    metadata: {
-      style: ColoringStyle
-      difficulty: number
-      sceneDescription: string
-      generatedAt: string
-    }
-  }
-  error?: string
-  details?: any
-}
+import type { GenerationRequest, GenerationResponse } from '@/types'
 
 export async function generateColoringPage(request: GenerationRequest): Promise<GenerationResponse> {
   try {

@@ -9,6 +9,6 @@ export const openai = new OpenAI({
 })
 
 export const OPENAI_MODELS = {
-  VISION: 'gpt-4o',
-  ImageGen: 'gpt-image-1',  
+  VISION: process.env.OPENAI_VISION_MODEL || 'gpt-4o',
+  ImageGen: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1',  
 } as const

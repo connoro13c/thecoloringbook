@@ -1,0 +1,27 @@
+/* Defensive styling for coloring page images */
+.coloring-image-container {
+  background-color: white !important;
+  isolation: isolate;
+  backdrop-filter: none;
+  position: relative;
+  z-index: 10;
+}
+
+.coloring-image-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.coloring-image {
+  background-color: white !important;
+  display: block;
+  position: relative;
+  z-index: 1;
+}

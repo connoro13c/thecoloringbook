@@ -1,62 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Hero } from '@/components/layout/Hero'
-import { WatercolorBackground } from '@/components/layout/WatercolorBackground'
+
 import { PhotoUpload } from '@/components/forms/PhotoUpload'
-import { SceneDescription } from '@/components/forms/SceneDescription'
-import { StyleSelection, type ColoringStyle } from '@/components/forms/StyleSelection'
 import { Button } from '@/components/ui/button'
+import { useGenerationState } from '@/lib/hooks/useGenerationState'
+import { useGeneration } from '@/lib/hooks/useGeneration'
+
+// Lazy load components that are conditionally rendered
+const SceneDescription = dynamic(() => import('@/components/forms/SceneDescription').then(mod => ({ default: mod.SceneDescription })), {
+  loading: () => <div className="h-32 bg-neutral-ivory/50 rounded-lg animate-pulse" />
+})
+
+const StyleSelection = dynamic(() => import('@/components/forms/StyleSelection').then(mod => ({ default: mod.StyleSelection })), {
+  loading: () => <div className="h-48 bg-neutral-ivory/50 rounded-lg animate-pulse" />
+})
 
 export default function Home() {
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
-  const [sceneDescription, setSceneDescription] = useState('')
-  const [selectedStyle, setSelectedStyle] = useState<ColoringStyle | null>(null)
-
-  const canGenerate = selectedPhoto && sceneDescription.trim() && selectedStyle
-
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { state, actions } = useGenerationState()
+  
+  const { generate } = useGeneration({
+    onGeneratingChange: actions.setGenerating,
+    onSuccess: actions.setGeneratedImage,
+    onError: actions.setError
+  })
 
   const handleGenerate = async () => {
-    if (!canGenerate || !selectedPhoto) return
+    if (!state.canGenerate || !state.selectedPhoto || !state.selectedStyle) return
     
-    setIsGenerating(true)
-    setError(null)
-    
-    try {
-      const { fileToBase64, generateColoringPage } = await import('@/lib/api')
-      
-      // Convert file to base64
-      const photoBase64 = await fileToBase64(selectedPhoto)
-      
-      // Call generation API
-      const response = await generateColoringPage({
-        photo: photoBase64,
-        sceneDescription,
-        style: selectedStyle!,
-        difficulty: 3
-      })
-      
-      if (response.success && response.data) {
-        setGeneratedImage(response.data.imageUrl)
-        console.log('🎉 Generation complete!', response.data.metadata)
-      } else {
-        throw new Error(response.error || 'Generation failed')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Something went wrong'
-      setError(errorMessage)
-      console.error('Generation error:', err)
-    } finally {
-      setIsGenerating(false)
-    }
+    await generate({
+      photo: state.selectedPhoto,
+      sceneDescription: state.sceneDescription,
+      style: state.selectedStyle,
+      difficulty: 3
+    })
   }
 
   return (
-    <main className="min-h-screen relative">
-      <WatercolorBackground />
+    <main className="min-h-screen relative" style={{ backgroundColor: '#F8F9FB' }}>
+
       <Hero />
       
       {/* Upload and Generation Flow */}
@@ -66,63 +49,96 @@ export default function Home() {
           {/* Step 1: Photo Upload */}
           <div className="mb-12">
             <PhotoUpload 
-              onPhotoSelect={setSelectedPhoto}
-              selectedPhoto={selectedPhoto}
+              onPhotoSelect={actions.setPhoto}
+              selectedPhoto={state.selectedPhoto}
             />
           </div>
 
           {/* Step 2: Scene Description */}
-          {selectedPhoto && (
+          {state.selectedPhoto && (
             <div className="mb-12 animate-in slide-in-from-bottom-4 duration-500">
               <SceneDescription
-                value={sceneDescription}
-                onChange={setSceneDescription}
+                value={state.sceneDescription}
+                onChange={actions.setSceneDescription}
               />
             </div>
           )}
 
           {/* Step 3: Style Selection */}
-          {selectedPhoto && sceneDescription.trim() && (
+          {state.selectedPhoto && state.sceneDescription.trim() && (
             <div className="mb-12 animate-in slide-in-from-bottom-4 duration-500">
               <StyleSelection
-                selectedStyle={selectedStyle}
-                onStyleSelect={setSelectedStyle}
+                selectedStyle={state.selectedStyle}
+                onStyleSelect={actions.setStyle}
               />
             </div>
           )}
 
           {/* Generate Button */}
-          {canGenerate && !generatedImage && (
+          {state.canGenerate && !state.generatedImage && (
             <div className="text-center animate-in slide-in-from-bottom-4 duration-500">
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                size="lg"
-                className="
-                  bg-primary-indigo hover:bg-primary-indigo/90 
-                  text-white font-playfair font-semibold text-xl
-                  px-12 py-6 rounded-xl
-                  shadow-lg hover:shadow-xl
-                  transform hover:scale-105 transition-all duration-300
-                  border-2 border-primary-indigo/20
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                "
+              <div
+                onClick={state.isGenerating ? undefined : handleGenerate}
+                className={`
+                  relative px-8 py-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                  bg-gradient-to-br from-emerald-100 via-blue-50 to-purple-100
+                  border-2 border-emerald-200/60 shadow-lg hover:shadow-xl
+                  ${state.isGenerating ? 'cursor-not-allowed opacity-75' : 'hover:border-primary-indigo'}
+                  ring-1 ring-primary-indigo/10 max-w-2xl mx-auto
+                `}
               >
-                {isGenerating ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    Creating Your Coloring Page...
-                  </span>
-                ) : (
-                  '✨ Generate My Coloring Page ($0.99)'
-                )}
-              </Button>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="flex justify-center text-emerald-700">
+                    {state.isGenerating ? (
+                      <div className="w-8 h-8 border-3 border-emerald-300 border-t-emerald-700 rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path 
+                          d="M12 36L36 12" 
+                          stroke="currentColor" 
+                          strokeWidth="2.5" 
+                          strokeLinecap="round"
+                        />
+                        <path 
+                          d="M36 8v8M32 12h8" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round"
+                        />
+                        <circle cx="12" cy="36" r="2" fill="currentColor"/>
+                        <path 
+                          d="M8 8v4M6 10h4M20 4v4M18 6h4M42 28v4M40 30h4" 
+                          stroke="currentColor" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round"
+                        />
+                        <path 
+                          d="M16 20l2 2-2 2-2-2z" 
+                          stroke="currentColor" 
+                          strokeWidth="1.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-playfair text-xl font-bold text-emerald-800">
+                      {state.isGenerating ? 'Creating your coloring page...' : 'Generate coloring page'}
+                    </h3>
+                    <p className="text-sm text-emerald-700/80">
+                      {state.isGenerating ? 'This usually takes 10-15 seconds' : 'High-quality JPG download for $0.99'}
+                    </p>
+                  </div>
+                </div>
+              </div>
               
               <p className="text-sm text-neutral-slate/60 mt-4">
                 High-quality JPG and PDF download included
               </p>
               
-              {isGenerating && (
+              {state.isGenerating && (
                 <div className="mt-6 p-4 bg-accent-aqua/10 rounded-lg border border-accent-aqua/30">
                   <p className="text-sm text-neutral-slate/80">
                     🤖 AI is analyzing your photo and creating a magical coloring page...
@@ -135,13 +151,13 @@ export default function Home() {
           )}
 
           {/* Error Display */}
-          {error && (
+          {state.error && (
             <div className="text-center animate-in slide-in-from-bottom-4 duration-500">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
                 <p className="text-red-600 font-medium mb-2">Generation Failed</p>
-                <p className="text-sm text-red-500">{error}</p>
+                <p className="text-sm text-red-500">{state.error}</p>
                 <Button
-                  onClick={() => setError(null)}
+                  onClick={() => actions.setError(null)}
                   variant="outline"
                   size="sm"
                   className="mt-3"
@@ -153,52 +169,163 @@ export default function Home() {
           )}
 
           {/* Generated Result */}
-          {generatedImage && (
+          {state.generatedImage && (
             <div className="text-center animate-in slide-in-from-bottom-4 duration-500">
               <div className="bg-white p-6 rounded-xl shadow-lg border-2 border-primary-indigo/20 max-w-2xl mx-auto">
                 <h3 className="font-playfair text-2xl font-bold text-neutral-slate mb-4">
-                  🎉 Your Coloring Page Is Ready!
+                  Your coloring page is ready!
                 </h3>
                 
-                <img
-                  src={generatedImage}
-                  alt="Generated coloring page"
-                  className="w-full max-w-md mx-auto rounded-lg shadow-md mb-6"
-                />
-                
-                <div className="flex flex-wrap gap-4 justify-center">
-                  <Button
-                    onClick={() => window.open(generatedImage, '_blank')}
-                    className="bg-primary-indigo hover:bg-primary-indigo/90 text-white"
-                  >
-                    📱 View Full Size
-                  </Button>
-                  
-                  <Button
-                    onClick={() => {
-                      const link = document.createElement('a')
-                      link.href = generatedImage
-                      link.download = 'coloring-page.jpg'
-                      link.click()
-                    }}
-                    className="bg-secondary-rose hover:bg-secondary-rose/90 text-white"
-                  >
-                    💾 Download JPG
-                  </Button>
-                  
-                  <Button
-                    onClick={() => {
-                      setGeneratedImage(null)
-                      setSelectedPhoto(null)
-                      setSceneDescription('')
-                      setSelectedStyle(null)
-                      setError(null)
-                    }}
-                    variant="outline"
-                  >
-                    🔄 Create Another
-                  </Button>
+                <div className="coloring-image-container bg-white p-4 rounded-lg shadow-md mb-6 max-w-md mx-auto">
+                  <img
+                    src={state.generatedImage}
+                    alt="Generated coloring page"
+                    className="coloring-image w-full h-auto rounded-lg"
+                  />
                 </div>
+                
+                <div className="flex gap-3 justify-center flex-wrap">
+                {/* View Full Size */}
+                <div
+                onClick={() => window.open(state.generatedImage!, '_blank')}
+                className="
+                relative px-4 py-3 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                bg-gradient-to-br from-orange-100 via-pink-50 to-orange-50
+                border-2 border-orange-200/60 shadow-md hover:shadow-lg
+                hover:border-primary-indigo flex items-center gap-2
+                "
+                >
+                <div className="text-amber-700">
+                <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect 
+                        x="6" y="8" width="36" height="28" rx="3" 
+                          stroke="currentColor" 
+                        strokeWidth="2.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          fill="none"
+                      />
+                      <rect 
+                          x="8" y="10" width="32" height="24" rx="2" 
+                        stroke="currentColor" 
+                          strokeWidth="1.5" 
+                            strokeDasharray="2,2"
+                             fill="none"
+                           />
+                           <circle 
+                             cx="34" cy="18" r="3" 
+                             stroke="currentColor" 
+                             strokeWidth="1.5" 
+                             fill="none"
+                           />
+                           <path 
+                             d="m8 28 8-8 4 4 8-8 8 6" 
+                             stroke="currentColor" 
+                             strokeWidth="2" 
+                             strokeLinecap="round" 
+                             strokeLinejoin="round"
+                             fill="none"
+                           />
+                         </svg>
+                       </div>
+                       <span className="font-playfair text-sm font-bold text-amber-800">
+                         View full size
+                       </span>
+                   </div>
+
+                   {/* Download */}
+                   <div
+                     onClick={() => {
+                       const link = document.createElement('a')
+                       link.href = state.generatedImage!
+                       link.download = 'coloring-page.jpg'
+                       link.click()
+                     }}
+                     className="
+                       relative px-4 py-3 rounded-xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                       bg-gradient-to-br from-blue-100 via-cyan-50 to-green-50
+                       border-2 border-blue-200/60 shadow-md hover:shadow-lg
+                       hover:border-primary-indigo flex items-center gap-2
+                     "
+                   >
+                     <div className="text-teal-700">
+                       <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                           <path 
+                             d="M24 32V16" 
+                             stroke="currentColor" 
+                             strokeWidth="2.5" 
+                             strokeLinecap="round"
+                           />
+                           <path 
+                             d="m16 24 8 8 8-8" 
+                             stroke="currentColor" 
+                             strokeWidth="2.5" 
+                             strokeLinecap="round" 
+                             strokeLinejoin="round"
+                             fill="none"
+                           />
+                           <path 
+                             d="M8 34h32" 
+                             stroke="currentColor" 
+                             strokeWidth="2.5" 
+                             strokeLinecap="round"
+                           />
+                           <path 
+                             d="M12 38h24" 
+                             stroke="currentColor" 
+                             strokeWidth="1.5" 
+                             strokeLinecap="round"
+                           />
+                         </svg>
+                       </div>
+                       <h3 className="font-playfair text-lg font-bold text-teal-800 mb-1">
+                         Download
+                       </h3>
+                       <p className="text-xs text-teal-700/80">
+                         Save JPG file
+                       </p>
+                     </div>
+                   </div>
+
+                   {/* Create Another */}
+                   <div
+                     onClick={actions.resetForm}
+                     className="
+                       relative p-6 rounded-3xl cursor-pointer transition-all duration-300 hover:scale-105
+                       bg-gradient-to-br from-green-100 via-cyan-50 to-blue-50
+                       border-2 border-green-200/60 shadow-lg hover:shadow-xl
+                       hover:border-primary-indigo
+                     "
+                   >
+                     <div className="text-center">
+                       <div className="mb-4 flex justify-center text-green-700">
+                         <svg className="w-12 h-12" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                           <path 
+                             d="M40 24c0 8.8-7.2 16-16 16s-16-7.2-16-16 7.2-16 16-16c4 0 7.6 1.5 10.4 4" 
+                             stroke="currentColor" 
+                             strokeWidth="2.5" 
+                             strokeLinecap="round"
+                             fill="none"
+                           />
+                           <path 
+                             d="m32 8 2.4 4L40 14" 
+                             stroke="currentColor" 
+                             strokeWidth="2.5" 
+                             strokeLinecap="round" 
+                             strokeLinejoin="round"
+                             fill="none"
+                           />
+                         </svg>
+                       </div>
+                       <h3 className="font-playfair text-lg font-bold text-green-800 mb-1">
+                         Create another
+                       </h3>
+                       <p className="text-xs text-green-700/80">
+                         Start over
+                       </p>
+                     </div>
+                   </div>
+                 </div>
               </div>
             </div>
           )}

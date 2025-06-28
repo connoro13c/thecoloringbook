@@ -4,7 +4,8 @@ import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { X, Upload, Image } from 'lucide-react'
+import { X } from 'lucide-react'
+import { UploadIcon, ImageIcon } from '@/components/ui/icons/WatercolorIcons'
 
 interface PhotoUploadProps {
   onPhotoSelect: (file: File) => void
@@ -52,7 +53,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
 
   if (selectedPhoto) {
     return (
-      <Card className="p-6 bg-neutral-ivory border-2 border-accent-aqua/30">
+      <Card className="p-6 bg-neutral-ivory border-2 border-dashed border-accent-aqua/50">
         <div className="text-center">
           <h2 className="font-playfair text-2xl font-bold text-neutral-slate mb-4">
             Photo Selected ✓
@@ -116,11 +117,11 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
           <div className="flex flex-col items-center space-y-4">
             {isDragActive ? (
               <div className="p-4 bg-primary-indigo/10 rounded-full">
-                <Upload className="w-8 h-8 text-primary-indigo" />
+                <UploadIcon className="w-8 h-8 text-primary-indigo" />
               </div>
             ) : (
               <div className="p-4 bg-accent-aqua/20 rounded-full">
-                <Image className="w-8 h-8 text-accent-aqua" />
+                <ImageIcon className="w-8 h-8 text-accent-aqua" />
               </div>
             )}
             

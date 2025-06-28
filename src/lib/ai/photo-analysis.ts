@@ -140,18 +140,20 @@ Provide only the JSON object, no other text.`
         }
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Photo analysis failed with error:', error)
+    
+    const errorObj = error as { name?: string; message?: string; stack?: string; status?: number; error?: unknown }
     console.error('📍 Error details:', {
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack
+      name: errorObj?.name,
+      message: errorObj?.message,
+      stack: errorObj?.stack
     })
     
     // If it's an API error, log more details
-    if (error?.status) {
-      console.error('🚨 OpenAI API Error Status:', error.status)
-      console.error('🚨 OpenAI API Error Details:', error.error)
+    if (errorObj?.status) {
+      console.error('🚨 OpenAI API Error Status:', errorObj.status)
+      console.error('🚨 OpenAI API Error Details:', errorObj.error)
     }
     
     throw new Error('Failed to analyze photo. Please try again.')

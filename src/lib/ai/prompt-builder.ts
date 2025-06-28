@@ -1,5 +1,4 @@
-import type { PhotoAnalysis } from "./photo-analysis";
-import type { ColoringStyle } from "@/components/forms/StyleSelection";
+import type { PhotoAnalysis, ColoringStyle } from "@/types";
 
 interface PromptComponents {
   photoAnalysis: PhotoAnalysis;
@@ -140,16 +139,17 @@ ARTISTIC ADAPTATION:
 - ${styleConfig.lineWeight}
 - Complexity level: ${difficultyModifier}
 
-TECHNICAL SPECIFICATIONS:
-- Pure black lines on white background - no shading, gradients, or gray areas
+TECHNICAL SPECIFICATIONS - CRITICAL:
+- SOLID WHITE BACKGROUND - no transparency, no gradients, no colors whatsoever
+- Pure black line art ONLY - absolutely no fills, shading, or gray tones
+- NO background elements, patterns, or decorative effects behind the characters
 - ${
     difficulty >= 4
       ? "Include intricate details and patterns"
       : "Keep details simple and clear"
   }
-- Thick, bold outlines perfect for printing and coloring
-- Ensure all lines connect properly for clean coloring sections
-- Professional coloring book page quality
+- Bold, connected outlines perfect for coloring
+- Traditional coloring book format - white page with black outlines only
 
 BALANCE DIRECTIVE: Prioritize creating an engaging scene while ensuring the child remains recognizable through their key physical characteristics (hair color, clothing, accessories). The scene transformation is primary, character fidelity is the constraint.
 

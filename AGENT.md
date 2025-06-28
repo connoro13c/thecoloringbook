@@ -81,15 +81,16 @@ rm -rf .next && npm run dev
 ## Design Philosophy & Style Guide
 
 ### Design Aesthetic
-- **Philosophy**: Refined, artistic, impressionist-inspired watercolor aesthetic appealing to sophisticated tastes
-- **Avoid**: Overly playful or cartoonish elements, no emojis in UI/UX
+- **Philosophy**: Vibrant, dreamy watercolor aesthetic with ethereal light effects - magical yet sophisticated
+- **Visual Language**: Saturated watercolor blends, soft bokeh lighting, organic gradients, whimsical nature elements
+- **Avoid**: Overly cartoonish elements, harsh lines, flat colors, no emojis in UI/UX
 
 ### Color Palette
-- **Primary Accent**: Soft Indigo – #5B6ABF
-- **Secondary Accent**: Muted Rose – #D98994
-- **Highlight Color**: Gentle Aqua – #7FBEBE
-- **Neutral Background**: Warm Ivory – #FCF8F3
-- **Text Color**: Rich Slate – #404040
+- **Primary Indigo**: Soft Indigo – #5B6ABF
+- **Secondary Rose**: Muted Rose – #D98994  
+- **Accent Aqua**: Gentle Aqua – #7FBEBE
+- **Neutral Ivory**: Warm Ivory – #FCF8F3
+- **Neutral Slate**: Rich Slate – #404040
 
 ### Typography
 - **Headlines**: "Playfair Display" (Bold)
@@ -111,50 +112,56 @@ rm -rf .next && npm run dev
 - **Slack notifications**: Real-time transaction updates
 
 ## Implementation Phases
-- **Phase 0** – Setup: Repo, environment configuration
-- **Phase 1** – Auth & Upload: Supabase Auth, photo drop-zone, Supabase Storage
+- **Phase 0** – Setup: Repo, environment configuration ✅ COMPLETE
+- **Phase 1** – Core UI: React components, watercolor design system ✅ COMPLETE
 - **Phase 2** – AI pipeline: OpenAI gpt-image-1 generation, return PNG ✅ COMPLETE
-- **Phase 3** – Preview UI: Live progress, difficulty slider
+- **Phase 3** – MVP Flow: Photo upload → AI generation → download (anonymous users) ✅ COMPLETE
 - **Phase 4** – Payments: Stripe Checkout, webhook to DB
-- **Phase 5** – PDF & history: pdf-kit concat, user dashboard
-- **Phase 6** – Hardening: Load test (k6), security pen-test, framerate audits
-- **Phase 7** – Launch: Prod env, runbook, status page
+- **Phase 5** – Auth & User Management: Supabase Auth, user dashboard, saved pages
+- **Phase 6** – PDF Export: pdf-kit generation for authenticated users
+- **Phase 7** – Advanced Features: Difficulty slider, regeneration options
+- **Phase 8** – Hardening: Load test (k6), security pen-test, performance audits
+- **Phase 9** – Launch: Prod env, runbook, status page
 
 ## Project Structure
 ```
-.
-├── app                     # Next.js 15 app router
-│   ├── api/v1              # Versioned API routes
-│   │   ├── createJob       # Generate JPG for users
-│   │   ├── export-pdf      # PDF export (auth required)
-│   │   ├── my-pages        # User's saved pages
-│   │   └── ...
-│   ├── auth/               # Authentication pages
-│   ├── dashboard/          # User dashboard
-│   ├── upload/             # Upload flow
-│   └── page.tsx           # Main landing page
-├── components              # Atomic → composite pattern
-│   ├── forms/             # Form components (PhotoUpload, StylePicker, etc.)
-│   ├── layout/            # Layout components (header, etc.)
-│   └── ui/                # shadcn/ui components
-├── lib                    # Utilities & configs
+src/
+├── app/                    # Next.js 15 app router
+│   ├── api/v1/             # Versioned API routes
+│   │   ├── analyze-photo/  # GPT-4o Vision photo analysis
+│   │   └── createJob/      # Generate JPG for users
+│   ├── globals.css         # Global styles
+│   ├── layout.tsx          # Root layout
+│   └── page.tsx           # Main landing page (complete flow)
+├── components/             # Atomic → composite pattern
+│   ├── forms/             # Form components
+│   │   ├── PhotoUpload.tsx     # Photo upload with dropzone
+│   │   ├── SceneDescription.tsx # Scene prompt input
+│   │   └── StyleSelection.tsx   # Style picker (Cartoon/Ghibli/Mandala)
+│   ├── layout/            # Layout components
+│   │   └── Hero.tsx       # Landing hero section
+│   └── ui/                # shadcn/ui + custom components
+│       ├── button.tsx, card.tsx, etc. # Base UI components
+│       └── icons/WatercolorIcons.tsx   # Custom watercolor-style icons
+├── lib/                   # Utilities & configs
 │   ├── ai/                # AI-related modules
 │   │   ├── image-generation.ts    # gpt-image-1 generation
 │   │   ├── photo-analysis.ts      # GPT-4o Vision analysis
 │   │   └── prompt-builder.ts      # Scene-first prompt engineering
-│   ├── api.ts             # API utilities
-│   ├── auth.ts            # Supabase Auth config
-│   ├── database.ts        # Database operations with service role
 │   ├── hooks/             # React hooks
-│   ├── openai.ts          # OpenAI client configuration
-│   ├── queue.ts           # Database queue system
-│   ├── storage.ts         # Supabase Storage helpers
-│   ├── stripe.ts          # Stripe config
+│   │   ├── useGeneration.ts       # AI generation hook
+│   │   └── useGenerationState.ts  # State management
+│   ├── services/          # Service layer
+│   │   └── generation-service.ts  # Complete generation pipeline
 │   ├── supabase/          # Supabase client configurations
 │   │   ├── client.ts      # Browser client
 │   │   └── server.ts      # Server client + service role
-│   └── worker.ts          # Background job processing
-└── scripts/               # Database scripts & utilities
+│   ├── api.ts, database.ts, openai.ts, storage.ts, utils.ts
+│   └── ...
+├── database/              # Database migrations & scripts
+├── middleware.ts          # Next.js middleware
+├── styles/               # Additional styling
+└── types/                # TypeScript definitions
 ```
 
 ## Code Standards

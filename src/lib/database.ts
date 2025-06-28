@@ -1,5 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import type { PhotoAnalysis } from '@/lib/ai/photo-analysis'
+import type { PhotoAnalysis } from '@/types'
 
 export interface PageRecord {
   id: string

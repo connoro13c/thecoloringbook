@@ -35,19 +35,20 @@ export async function generateColoringPage(prompt: string): Promise<GenerationRe
       prompt: prompt,
       revisedPrompt: imageData.revised_prompt
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ gpt-image-1 generation failed:', error)
     
     // Handle specific OpenAI errors
-    if (error?.error?.code === 'content_policy_violation') {
+    const errorObj = error as { error?: { code?: string; message?: string } }
+    if (errorObj?.error?.code === 'content_policy_violation') {
       throw new Error('Content not suitable for generation. Please try a different scene description.')
     }
     
-    if (error?.error?.code === 'rate_limit_exceeded') {
+    if (errorObj?.error?.code === 'rate_limit_exceeded') {
       throw new Error('Too many requests. Please wait a moment and try again.')
     }
     
-    if (error?.error?.code === 'insufficient_quota') {
+    if (errorObj?.error?.code === 'insufficient_quota') {
       throw new Error('OpenAI quota exceeded. Please contact support.')
     }
 

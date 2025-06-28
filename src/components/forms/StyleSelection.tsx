@@ -1,34 +1,27 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
+import type { ColoringStyle, StyleOption } from '@/types'
+import { ClassicCartoonIcon, GhibliIcon, MandalaIcon } from '@/components/ui/icons/WatercolorIcons'
 
-export type ColoringStyle = 'classic' | 'ghibli' | 'mandala'
-
-interface StyleOption {
-  id: ColoringStyle
-  name: string
-  description: string
-  preview: string
-}
-
-const styles: StyleOption[] = [
+const styles = [
   {
-    id: 'classic',
+    id: 'classic' as ColoringStyle,
     name: 'Classic Cartoon',
     description: 'Clean lines, perfect for young artists.',
-    preview: '🎨'
+    icon: ClassicCartoonIcon
   },
   {
-    id: 'ghibli',
+    id: 'ghibli' as ColoringStyle,
     name: 'Ghibli Style',
     description: 'Beautiful, detailed illustrations.',
-    preview: '🌸'
+    icon: GhibliIcon
   },
   {
-    id: 'mandala',
+    id: 'mandala' as ColoringStyle,
     name: 'Mandala/Pattern',
     description: 'Intricate designs for mindfulness coloring.',
-    preview: '🔯'
+    icon: MandalaIcon
   }
 ]
 
@@ -49,36 +42,93 @@ export function StyleSelection({ selectedStyle, onStyleSelect }: StyleSelectionP
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-        {styles.map((style) => (
-          <div
-            key={style.id}
-            onClick={() => onStyleSelect(style.id)}
-            className={`
-              relative p-6 rounded-xl border-2 cursor-pointer transition-all duration-300 hover:scale-105
-              ${selectedStyle === style.id
-                ? 'border-primary-indigo bg-primary-indigo/10 shadow-lg' 
-                : 'border-accent-aqua/50 bg-white/80 hover:border-primary-indigo/60'
-              }
-            `}
-          >
-            {selectedStyle === style.id && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary-indigo rounded-full flex items-center justify-center">
-                <span className="text-white text-sm">✓</span>
-              </div>
-            )}
-            
-            <div className="text-center">
-              <div className="text-4xl mb-4">{style.preview}</div>
-              <h3 className="font-playfair text-xl font-bold text-neutral-slate mb-2">
-                {style.name}
-              </h3>
-              <p className="text-sm text-neutral-slate/70">
-                {style.description}
-              </p>
+      <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        {/* Classic Cartoon */}
+        <div
+          onClick={() => onStyleSelect('classic')}
+          className={`
+            relative p-5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+            bg-gradient-to-br from-orange-100 via-pink-50 to-orange-50
+            border-2 border-orange-200/60 shadow-md hover:shadow-lg
+            ${selectedStyle === 'classic' ? 'ring-2 ring-primary-indigo/30 border-primary-indigo' : ''}
+          `}
+        >
+          {selectedStyle === 'classic' && (
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary-indigo rounded-full flex items-center justify-center shadow-md">
+              <span className="text-white text-xs font-bold">✓</span>
             </div>
+          )}
+          
+          <div className="text-center">
+            <div className="mb-3 flex justify-center text-amber-700">
+              <ClassicCartoonIcon className="w-10 h-10" />
+            </div>
+            <h3 className="font-playfair text-lg font-bold text-amber-800 mb-1">
+              Classic cartoon
+            </h3>
+            <p className="text-xs text-amber-700/80">
+              Clean lines, perfect for young artists.
+            </p>
           </div>
-        ))}
+        </div>
+
+        {/* Ghibli Style */}
+        <div
+          onClick={() => onStyleSelect('ghibli')}
+          className={`
+            relative p-5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+            bg-gradient-to-br from-blue-100 via-cyan-50 to-green-50
+            border-2 border-blue-200/60 shadow-md hover:shadow-lg
+            ${selectedStyle === 'ghibli' ? 'ring-2 ring-primary-indigo/30 border-primary-indigo' : ''}
+          `}
+        >
+          {selectedStyle === 'ghibli' && (
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary-indigo rounded-full flex items-center justify-center shadow-md">
+              <span className="text-white text-xs font-bold">✓</span>
+            </div>
+          )}
+          
+          <div className="text-center">
+            <div className="mb-3 flex justify-center text-teal-700">
+              <GhibliIcon className="w-10 h-10" />
+            </div>
+            <h3 className="font-playfair text-lg font-bold text-teal-800 mb-1">
+              Ghibli style
+            </h3>
+            <p className="text-xs text-teal-700/80">
+              Beautiful, detailed illustrations.
+            </p>
+          </div>
+        </div>
+
+        {/* Mandala Pattern */}
+        <div
+          onClick={() => onStyleSelect('mandala')}
+          className={`
+            relative p-5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+            bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50
+            border-2 border-purple-200/60 shadow-md hover:shadow-lg
+            ${selectedStyle === 'mandala' ? 'ring-2 ring-primary-indigo/30 border-primary-indigo' : ''}
+          `}
+        >
+          {selectedStyle === 'mandala' && (
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary-indigo rounded-full flex items-center justify-center shadow-md">
+              <span className="text-white text-xs font-bold">✓</span>
+            </div>
+          )}
+          
+          <div className="text-center">
+            <div className="mb-3 flex justify-center text-purple-700">
+              <MandalaIcon className="w-10 h-10" />
+            </div>
+            <h3 className="font-playfair text-lg font-bold text-purple-800 mb-1">
+              Mandala pattern
+            </h3>
+            <p className="text-xs text-purple-700/80">
+              Intricate designs for mindfulness coloring.
+            </p>
+          </div>
+        </div>
       </div>
     </Card>
   )
