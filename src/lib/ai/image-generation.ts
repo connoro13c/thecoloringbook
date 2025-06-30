@@ -1,12 +1,18 @@
 import { openai, OPENAI_MODELS } from '@/lib/openai'
+import type { CompactLogger } from './compact-logger'
+import { createImageMetrics } from './compact-logger'
 
 export interface GenerationResult {
   imageUrl: string
   prompt: string
   revisedPrompt?: string
+  tokens?: {
+    prompt: number
+    completion: number
+  }
 }
 
-export async function generateColoringPage(prompt: string): Promise<GenerationResult> {
+export async function generateColoringPage(prompt: string, logger?: CompactLogger): Promise<GenerationResult> {
   try {
     console.log('🎨 Starting gpt-image-1 generation...')
     console.log('📝 Prompt:', prompt.substring(0, 200) + '...')
@@ -27,13 +33,26 @@ export async function generateColoringPage(prompt: string): Promise<GenerationRe
     // Convert base64 to data URL for compatibility
     const imageUrl = `data:image/png;base64,${imageData.b64_json}`
 
-    console.log('✅ gpt-image-1 generation successful')
-    console.log('📸 Image generated as base64 data')
+    // Estimate prompt tokens for cost calculation (gpt-image-1 doesn't return usage)
+    const estimatedPromptTokens = Math.ceil(prompt.length / 4) // rough estimate: 4 chars per token
+    
+    // Log metrics using compact logger if provided
+    if (logger) {
+      const metrics = createImageMetrics(estimatedPromptTokens, 'medium')
+      logger.logImage(metrics)
+    } else {
+      console.log('✅ gpt-image-1 generation successful')
+      console.log('📸 Image generated as base64 data')
+    }
 
     return {
       imageUrl: imageUrl,
       prompt: prompt,
-      revisedPrompt: imageData.revised_prompt
+      revisedPrompt: imageData.revised_prompt,
+      tokens: {
+        prompt: estimatedPromptTokens,
+        completion: 0
+      }
     }
   } catch (error: unknown) {
     console.error('❌ gpt-image-1 generation failed:', error)

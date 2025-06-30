@@ -1,4 +1,6 @@
 import { openai, OPENAI_MODELS } from '@/lib/openai'
+import type { CompactLogger } from './compact-logger'
+import { createVisionMetrics } from './compact-logger'
 
 export interface PhotoAnalysis {
   child: {
@@ -19,7 +21,14 @@ export interface PhotoAnalysis {
   }
 }
 
-export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysis> {
+export interface PhotoAnalysisResult extends PhotoAnalysis {
+  tokens: {
+    prompt: number
+    completion: number
+  }
+}
+
+export async function analyzePhoto(imageBase64: string, logger?: CompactLogger): Promise<PhotoAnalysisResult> {
   try {
     console.log('🔍 Starting photo analysis...')
     console.log('📷 Image data length:', imageBase64.length)
@@ -86,11 +95,19 @@ Provide only the JSON object, no other text.`
       temperature: 0.3,
     })
 
-    console.log('✅ OpenAI API call successful')
-    console.log('📝 Raw response:', JSON.stringify(response, null, 2))
-
+    const usage = response.usage
     const content = response.choices[0]?.message?.content
-    console.log('📄 Content received:', content)
+    
+    // Log metrics using compact logger if provided
+    if (logger && usage) {
+      const metrics = createVisionMetrics(usage.prompt_tokens, usage.completion_tokens)
+      logger.logVision(metrics)
+    } else {
+      console.log('✅ OpenAI API call successful')
+      if (usage) {
+        console.log('📊 Token usage:', usage)
+      }
+    }
     
     if (!content) {
       console.error('❌ No content in OpenAI response')
@@ -115,7 +132,14 @@ Provide only the JSON object, no other text.`
       
       const analysis = JSON.parse(cleanContent) as PhotoAnalysis
       console.log('✅ JSON parsed successfully from OpenAI Vision:', analysis)
-      return analysis
+      
+      return {
+        ...analysis,
+        tokens: {
+          prompt: usage?.prompt_tokens || 0,
+          completion: usage?.completion_tokens || 0
+        }
+      }
     } catch (parseError) {
       console.error('❌ Failed to parse OpenAI response as JSON:', parseError)
       console.error('📄 Raw content that failed to parse:', content)
@@ -137,6 +161,10 @@ Provide only the JSON object, no other text.`
         suggestions: {
           coloringComplexity: 'medium',
           recommendedElements: ['flowers', 'butterflies', 'rainbow', 'clouds', 'stars']
+        },
+        tokens: {
+          prompt: usage?.prompt_tokens || 0,
+          completion: usage?.completion_tokens || 0
         }
       }
     }

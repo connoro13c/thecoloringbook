@@ -1,9 +1,10 @@
-import { analyzePhoto } from '@/lib/ai/photo-analysis'
+import { analyzePhoto, type PhotoAnalysisResult } from '@/lib/ai/photo-analysis'
 import { buildDallePrompt } from '@/lib/ai/prompt-builder'
 import { generateColoringPage, downloadImage } from '@/lib/ai/image-generation'
 import { uploadToStorage, generateFilename } from '@/lib/storage'
 import { createPage } from '@/lib/database'
 import { createClient } from '@/lib/supabase/server'
+import { CompactLogger } from '@/lib/ai/compact-logger'
 import type { 
   GenerationRequest, 
   GenerationResponse, 
