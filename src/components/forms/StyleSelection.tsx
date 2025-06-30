@@ -35,7 +35,7 @@ export function StyleSelection({ selectedStyle, onStyleSelect }: StyleSelectionP
     <Card className="p-6 bg-neutral-ivory border-2 border-accent-aqua/30">
       <div className="text-center mb-6">
         <h2 className="font-playfair text-3xl font-bold text-neutral-slate mb-4">
-          Choose Your Coloring Style
+          Choose your coloring style
         </h2>
         <p className="text-lg text-neutral-slate/80">
           Select the artistic style that matches your child&apos;s preferences

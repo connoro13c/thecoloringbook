@@ -29,6 +29,7 @@ export interface GenerationRequest {
   sceneDescription: string
   style: ColoringStyle
   difficulty: number
+  isPreview?: boolean
 }
 
 export interface GenerationResponse {

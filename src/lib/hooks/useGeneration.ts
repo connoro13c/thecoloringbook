@@ -41,6 +41,7 @@ export function useGeneration({ onGeneratingChange, onSuccess, onError }: UseGen
     sceneDescription: string
     style: ColoringStyle
     difficulty?: number
+    isPreview?: boolean
   }) => {
     try {
       onGeneratingChange(true)
@@ -53,7 +54,8 @@ export function useGeneration({ onGeneratingChange, onSuccess, onError }: UseGen
         photo: photoBase64,
         sceneDescription: params.sceneDescription,
         style: params.style,
-        difficulty: params.difficulty || 3
+        difficulty: params.difficulty || 3,
+        isPreview: params.isPreview || false
       })
       
       if (response.success && response.data) {

@@ -1,9 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+
+// Export createClient function for consistent usage
+export const createClient = () => createSupabaseClient(supabaseUrl, supabaseAnonKey)
 
 export type Database = {
   public: {
@@ -17,6 +20,7 @@ export type Database = {
           difficulty: number
           jpg_path: string | null
           pdf_path: string | null
+          deleted_at: string | null
           created_at: string
           updated_at: string
         }
@@ -25,9 +29,10 @@ export type Database = {
           user_id: string
           prompt: string
           style: string
-          difficulty: number
+          difficulty?: number
           jpg_path?: string | null
           pdf_path?: string | null
+          deleted_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -39,22 +44,64 @@ export type Database = {
           difficulty?: number
           jpg_path?: string | null
           pdf_path?: string | null
+          deleted_at?: string | null
           created_at?: string
           updated_at?: string
         }
       }
-      page_sessions: {
+      user_credits: {
         Row: {
           id: string
+          user_id: string
+          credits: number
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
+          user_id: string
+          credits?: number
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
+          user_id?: string
+          credits?: number
           created_at?: string
+          updated_at?: string
+        }
+      }
+      donations: {
+        Row: {
+          id: string
+          user_id: string | null
+          stripe_payment_id: string | null
+          amount_cents: number
+          credits_granted: number
+          stripe_status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          stripe_payment_id?: string | null
+          amount_cents: number
+          credits_granted: number
+          stripe_status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          stripe_payment_id?: string | null
+          amount_cents?: number
+          credits_granted?: number
+          stripe_status?: string
+          created_at?: string
+          updated_at?: string
         }
       }
     }

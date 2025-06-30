@@ -21,7 +21,7 @@ export async function uploadToStorage(
   contentType: string = 'image/jpeg'
 ): Promise<StorageResult> {
   try {
-    console.log('📤 Uploading to Supabase Storage:', path)
+  
 
     const { data, error } = await supabaseAdmin.storage
       .from('temp-pages')
@@ -36,7 +36,7 @@ export async function uploadToStorage(
       throw new Error(`Storage upload failed: ${error.message}`)
     }
 
-    console.log('✅ Upload successful:', data.path)
+
 
     // Get public URL
     const { data: publicUrlData } = supabaseAdmin.storage
@@ -62,7 +62,7 @@ export async function uploadUserImage(
   const path = `${userId}/${filename}`
   
   try {
-    console.log('📤 Uploading user image to Supabase Storage:', path)
+  
 
     const { data, error } = await supabaseAdmin.storage
       .from('user-pages')
@@ -77,7 +77,7 @@ export async function uploadUserImage(
       throw new Error(`User storage upload failed: ${error.message}`)
     }
 
-    console.log('✅ User upload successful:', data.path)
+
 
     // Get public URL (signed for private bucket)
     const { data: publicUrlData } = supabaseAdmin.storage

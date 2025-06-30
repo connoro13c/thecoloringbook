@@ -5,6 +5,8 @@ import { uploadToStorage, generateFilename } from '@/lib/storage'
 import { createPage } from '@/lib/database'
 import { createClient } from '@/lib/supabase/server'
 import { CompactLogger } from '@/lib/ai/compact-logger'
+import { TieredLogger } from '@/lib/ai/tiered-logger'
+import { createVisionMetrics, createImageMetrics } from '@/lib/ai/compact-logger'
 import type { 
   GenerationRequest, 
   GenerationResponse, 
@@ -22,21 +24,23 @@ export class GenerationService {
    * Main orchestration method for generating a coloring page
    */
   static async generateColoringPage(request: GenerationRequest): Promise<GenerationResponse> {
+    // Use tiered logger for enhanced output
+    const logger = new TieredLogger()
+    
     try {
-      console.log('🚀 Starting coloring page generation...')
-      
       // Extract base64 data from data URL
       const base64Data = request.photo.replace(/^data:image\/[a-z]+;base64,/, '')
       
-      console.log('📊 Request details:', {
-        sceneDescription: request.sceneDescription.substring(0, 50) + '...',
+      // Start job logging
+      logger.startJob({
         style: request.style,
         difficulty: request.difficulty,
+        scene: request.sceneDescription,
         photoSize: base64Data.length
       })
 
       // Step 1: Analyze the photo
-      const photoAnalysis = await this.analyzePhoto(base64Data)
+      const photoAnalysis = await this.analyzePhoto(base64Data, logger)
       
       // Step 2: Build the prompt
       const dallePrompt = this.buildPrompt({
@@ -47,10 +51,10 @@ export class GenerationService {
       })
 
       // Step 3: Generate image
-      const generationResult = await this.generateImage(dallePrompt)
+      const generationResult = await this.generateImage(dallePrompt, logger)
       
       // Step 4: Store image
-      const storageResult = await this.storeImage(generationResult.imageUrl)
+      const storageResult = await this.storeImage(generationResult.imageUrl, logger)
       
       // Step 5: Save to database
       const pageRecord = await this.saveToDatabase({
@@ -59,9 +63,14 @@ export class GenerationService {
         difficulty: request.difficulty,
         jpgPath: storageResult.path,
         analysisOutput: photoAnalysis
-      })
+      }, logger)
       
-      console.log('🎉 Generation pipeline complete!')
+      // Add all collected data to tiered logger
+      this.addVisionDataToLogger(logger, photoAnalysis)
+      this.addImageDataToLogger(logger, generationResult, dallePrompt)
+      this.addStorageDataToLogger(logger, storageResult, pageRecord)
+      
+      logger.completeJob()
       
       return {
         success: true,
@@ -82,7 +91,7 @@ export class GenerationService {
       }
       
     } catch (error) {
-      console.error('❌ Generation failed:', error)
+      logger.logError('Generation failed', error)
       return this.handleError(error)
     }
   }
@@ -90,20 +99,8 @@ export class GenerationService {
   /**
    * Step 1: Analyze photo with GPT-4o Vision
    */
-  private static async analyzePhoto(base64Data: string): Promise<PhotoAnalysis> {
-    console.log('👁️ Step 1: Analyzing photo with GPT-4o Vision...')
-    
-    const photoAnalysis = await analyzePhoto(base64Data)
-    
-    console.log('✅ Photo analysis complete:', {
-      childAge: photoAnalysis.child.age,
-      appearance: photoAnalysis.child.appearance.substring(0, 60) + '...',
-      complexity: photoAnalysis.suggestions.coloringComplexity,
-      elements: photoAnalysis.suggestions.recommendedElements.slice(0, 3),
-      usingFallback: photoAnalysis.child.age === '6-8 years old' && 
-                    photoAnalysis.child.appearance.includes('shoulder-length hair, bright eyes')
-    })
-    
+  private static async analyzePhoto(base64Data: string, logger: TieredLogger): Promise<PhotoAnalysisResult> {
+    const photoAnalysis = await analyzePhoto(base64Data, logger)
     return photoAnalysis
   }
 
@@ -111,13 +108,11 @@ export class GenerationService {
    * Step 2: Build optimized prompt
    */
   private static buildPrompt(params: {
-    photoAnalysis: PhotoAnalysis
+    photoAnalysis: PhotoAnalysisResult
     sceneDescription: string
     style: string
     difficulty: number
   }): string {
-    console.log('📝 Step 2: Building optimized prompt...')
-    
     return buildDallePrompt({
       photoAnalysis: params.photoAnalysis,
       sceneDescription: params.sceneDescription,
@@ -129,30 +124,18 @@ export class GenerationService {
   /**
    * Step 3: Generate image with gpt-image-1
    */
-  private static async generateImage(prompt: string) {
-    console.log('🎨 Step 3: Generating with gpt-image-1...')
-    
-    const generationResult = await generateColoringPage(prompt)
-    
-    console.log('✅ Generation successful')
-    if (generationResult.revisedPrompt) {
-      console.log('📝 gpt-image-1 revised prompt:', generationResult.revisedPrompt.substring(0, 100) + '...')
-    }
-    
+  private static async generateImage(prompt: string, logger: TieredLogger) {
+    const generationResult = await generateColoringPage(prompt, logger)
     return generationResult
   }
 
   /**
    * Step 4: Download and store image
    */
-  private static async storeImage(imageUrl: string) {
-    console.log('💾 Step 4: Downloading and storing image...')
-    
+  private static async storeImage(imageUrl: string, logger: TieredLogger) {
     const imageBuffer = await downloadImage(imageUrl)
     const filename = generateFilename('coloring')
     const storageResult = await uploadToStorage(imageBuffer, filename, 'image/png')
-    
-    console.log('✅ Storage complete:', storageResult.publicUrl)
     
     return storageResult
   }
@@ -165,10 +148,8 @@ export class GenerationService {
     style: string
     difficulty: number
     jpgPath: string
-    analysisOutput: PhotoAnalysis
-  }) {
-    console.log('💾 Step 5: Saving page to database...')
-    
+    analysisOutput: PhotoAnalysisResult
+  }, logger: TieredLogger) {
     // Get current user if authenticated
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -182,9 +163,66 @@ export class GenerationService {
       analysis_output: params.analysisOutput
     })
     
-    console.log('✅ Page saved to database:', pageRecord.id)
-    
     return pageRecord
+  }
+
+  /**
+   * Add vision analysis data from actual OpenAI API response
+   */
+  private static addVisionDataToLogger(logger: TieredLogger, photoAnalysis: PhotoAnalysisResult) {
+    const visionMetrics = createVisionMetrics(
+      photoAnalysis.tokens.prompt,
+      photoAnalysis.tokens.completion
+    )
+    
+    logger.addVisionData({
+      cost: visionMetrics.cost,
+      tokens: {
+        input: photoAnalysis.tokens.prompt,
+        output: photoAnalysis.tokens.completion
+      },
+      analysis: {
+        age: photoAnalysis.child.age,
+        appearance: photoAnalysis.child.appearance,
+        pose: photoAnalysis.composition.pose,
+        perspective: photoAnalysis.composition.perspective,
+        elements: photoAnalysis.suggestions.recommendedElements,
+        complexity: photoAnalysis.suggestions.coloringComplexity,
+        usingFallback: photoAnalysis.child.age === '6-8 years old' && 
+                      photoAnalysis.child.appearance.includes('shoulder-length hair, bright eyes')
+      }
+    })
+  }
+
+  /**
+   * Add image generation data from actual OpenAI API response
+   */
+  private static addImageDataToLogger(logger: TieredLogger, generationResult: any, dallePrompt: string) {
+    const imageTokens = generationResult.tokens?.prompt || Math.ceil(dallePrompt.length / 4)
+    const imageMetrics = createImageMetrics(imageTokens, 'high')
+    
+    // Extract meaningful prompt excerpt - find the scene description part
+    const sceneMatch = dallePrompt.match(/featuring this magical scene: (.+?)(?:\n|PRIMARY SCENE|$)/i)
+    const meaningfulExcerpt = sceneMatch ? sceneMatch[1].trim() : dallePrompt.slice(0, 120)
+    
+    logger.addImageData({
+      cost: imageMetrics.cost,
+      tokens: {
+        input: imageTokens,
+        output: 0
+      },
+      promptSample: meaningfulExcerpt
+    })
+  }
+
+  /**
+   * Add storage data from actual file upload and database save
+   */
+  private static addStorageDataToLogger(logger: TieredLogger, storageResult: any, pageRecord: any) {
+    logger.addStorageData({
+      fileName: storageResult.path.split('/').pop() || 'unknown',
+      recordId: pageRecord.id
+    })
   }
 
   /**

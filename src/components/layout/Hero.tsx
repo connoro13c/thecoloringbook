@@ -52,13 +52,15 @@ export function Hero() {
 
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-        <h1 className="font-playfair text-5xl md:text-6xl lg:text-7xl font-bold text-neutral-slate mb-6 leading-tight">
-          Bring Your Kids&apos; 
-          <span className="block text-primary-indigo">Adventures to Life!</span>
+        <h1 className="font-playfair font-bold text-neutral-slate mb-6 leading-tight">
+          <span className="block text-6xl md:text-7xl lg:text-8xl mb-4">Coloring pages</span>
+          <span className="block text-4xl md:text-5xl lg:text-6xl font-normal text-primary-indigo">crafted from their imagination</span>
         </h1>
         
         <p className="font-lato text-xl md:text-2xl text-neutral-slate/80 mb-8 max-w-2xl mx-auto leading-relaxed">
-          Instantly create personalized, printable black and white coloring pages with your child&apos;s photos.
+          Create personalized, printable black and white coloring pages
+          <br />
+          with your child&apos;s photos.
         </p>
 
         <Button 
@@ -73,7 +75,7 @@ export function Hero() {
             border-2 border-primary-indigo/20
           "
         >
-          Create Your Coloring Page
+          Create your coloring page
         </Button>
 
 

@@ -105,23 +105,26 @@ rm -rf .next && npm run dev
 - Impressionist-inspired backgrounds, framed artistic image previews
 
 ## Payment Structure
-- **Initial download**: $0.99 (JPG and PDF)
-- **Regeneration** (minor adjustments): $0.50
+- **Free Tier**: 5 credits after email verification (one-time)
+- **Supporter Pack**: $5 for 20 credits
+- **Patron Donation**: $10+ (custom amounts, $0.25 per credit)
+- **Anonymous Previews**: Free low-res previews, no account required
 - **Stripe Integration**: Secure checkout with fraud prevention
-- **Email confirmations**: Via SendGrid
-- **Slack notifications**: Real-time transaction updates
+- **Donation-based**: All proceeds go to Stanford Children's Hospital
 
 ## Implementation Phases
 - **Phase 0** – Setup: Repo, environment configuration ✅ COMPLETE
 - **Phase 1** – Core UI: React components, watercolor design system ✅ COMPLETE
 - **Phase 2** – AI pipeline: OpenAI gpt-image-1 generation, return PNG ✅ COMPLETE
 - **Phase 3** – MVP Flow: Photo upload → AI generation → download (anonymous users) ✅ COMPLETE
-- **Phase 4** – Payments: Stripe Checkout, webhook to DB
-- **Phase 5** – Auth & User Management: Supabase Auth, user dashboard, saved pages
-- **Phase 6** – PDF Export: pdf-kit generation for authenticated users
-- **Phase 7** – Advanced Features: Difficulty slider, regeneration options
-- **Phase 8** – Hardening: Load test (k6), security pen-test, performance audits
-- **Phase 9** – Launch: Prod env, runbook, status page
+- **Phase 4** – Auth & Credit System: Supabase Auth, credit management, donation flow ✅ COMPLETE
+- **Phase 5** – Payments: Stripe Checkout, webhook processing ✅ COMPLETE
+- **Phase 6** – User Dashboard: Saved pages, credit management
+- **Phase 7** – PDF Export: pdf-kit generation for authenticated users
+- **Phase 8** – Advanced Features: Difficulty slider, regeneration options
+- **Phase 9** – Rate Limiting: Upstash Redis, abuse prevention
+- **Phase 10** – Hardening: Load test (k6), security pen-test, performance audits
+- **Phase 11** – Launch: Prod env, runbook, status page
 
 ## Project Structure
 ```
@@ -243,29 +246,51 @@ Supabase Storage:
 
 ## Database Schema
 ```sql
--- Anonymous sessions (temporary tracking)
-page_sessions (
-  id uuid PK,
-  created_at TIMESTAMP default now()
-)
-
 -- Authenticated user pages (permanent)
 pages (
   id uuid PK,
   user_id uuid references auth.users,
   prompt TEXT,
   style TEXT,
+  difficulty INTEGER default 3,
   jpg_path TEXT,
   pdf_path TEXT,
-  created_at TIMESTAMP default now()
+  deleted_at TIMESTAMP,
+  created_at TIMESTAMP default now(),
+  updated_at TIMESTAMP default now()
 )
 -- RLS: pages.user_id = auth.uid()
+
+-- User credit balances
+user_credits (
+  id uuid PK,
+  user_id uuid references auth.users unique,
+  credits INTEGER default 0 check (credits >= 0),
+  created_at TIMESTAMP default now(),
+  updated_at TIMESTAMP default now()
+)
+-- RLS: user can read own credits only
+
+-- Donation tracking
+donations (
+  id uuid PK,
+  user_id uuid references auth.users,
+  stripe_payment_id TEXT unique,
+  amount_cents INTEGER not null,
+  credits_granted INTEGER not null,
+  stripe_status TEXT default 'pending',
+  created_at TIMESTAMP default now(),
+  updated_at TIMESTAMP default now()
+)
+-- RLS: user can read own donations only
 ```
 
 ## API Routes
 - `/api/v1/createJob` (POST) - Generate JPG for anon or auth users with difficulty/style controls
+- `/api/v1/create-checkout` (POST, auth required) - Create Stripe checkout session for donations
 - `/api/v1/export-pdf` (POST, auth required) - Export PDF after Stripe payment
 - `/api/v1/my-pages` (GET, auth required) - List user's saved pages
+- `/api/webhooks/stripe` (POST) - Handle Stripe webhook events for payment processing
 
 ## Performance & Monitoring
 - **Performance Benchmark**: End-to-end user experience within 30 seconds per image generation

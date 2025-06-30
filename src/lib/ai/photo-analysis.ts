@@ -1,5 +1,6 @@
 import { openai, OPENAI_MODELS } from '@/lib/openai'
 import type { CompactLogger } from './compact-logger'
+import type { TieredLogger } from './tiered-logger'
 import { createVisionMetrics } from './compact-logger'
 
 export interface PhotoAnalysis {
@@ -28,12 +29,8 @@ export interface PhotoAnalysisResult extends PhotoAnalysis {
   }
 }
 
-export async function analyzePhoto(imageBase64: string, logger?: CompactLogger): Promise<PhotoAnalysisResult> {
+export async function analyzePhoto(imageBase64: string, logger?: CompactLogger | TieredLogger): Promise<PhotoAnalysisResult> {
   try {
-    console.log('🔍 Starting photo analysis...')
-    console.log('📷 Image data length:', imageBase64.length)
-    console.log('🔑 OpenAI API key present:', !!process.env.OPENAI_API_KEY)
-    console.log('🔑 OpenAI API key first 10 chars:', process.env.OPENAI_API_KEY?.substring(0, 10))
     
     const response = await openai.chat.completions.create({
       model: OPENAI_MODELS.VISION,
@@ -98,14 +95,16 @@ Provide only the JSON object, no other text.`
     const usage = response.usage
     const content = response.choices[0]?.message?.content
     
-    // Log metrics using compact logger if provided
+    // Log metrics using logger if provided
     if (logger && usage) {
       const metrics = createVisionMetrics(usage.prompt_tokens, usage.completion_tokens)
-      logger.logVision(metrics)
-    } else {
-      console.log('✅ OpenAI API call successful')
-      if (usage) {
-        console.log('📊 Token usage:', usage)
+      
+      if ('logVision' in logger) {
+        // CompactLogger
+        logger.logVision(metrics)
+      } else {
+        // TieredLogger - will be handled in generation service
+        logger.debug('Vision analysis completed', { tokens: usage, cost: metrics.cost })
       }
     }
     
@@ -116,22 +115,15 @@ Provide only the JSON object, no other text.`
 
     // Parse the JSON response
     try {
-      console.log('🔄 Attempting to parse JSON...')
-      
       // Strip markdown code blocks if present
       let cleanContent = content.trim()
       if (cleanContent.startsWith('```json')) {
-        console.log('📝 Removing markdown JSON wrapper...')
         cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '')
       } else if (cleanContent.startsWith('```')) {
-        console.log('📝 Removing markdown wrapper...')
         cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '')
       }
       
-      console.log('🧹 Cleaned content:', cleanContent.substring(0, 100) + '...')
-      
       const analysis = JSON.parse(cleanContent) as PhotoAnalysis
-      console.log('✅ JSON parsed successfully from OpenAI Vision:', analysis)
       
       return {
         ...analysis,
@@ -142,8 +134,6 @@ Provide only the JSON object, no other text.`
       }
     } catch (parseError) {
       console.error('❌ Failed to parse OpenAI response as JSON:', parseError)
-      console.error('📄 Raw content that failed to parse:', content)
-      console.log('⚠️ FALLING BACK TO DEFAULT ANALYSIS - Real photo details will be lost!')
       // Fallback analysis if JSON parsing fails
       return {
         child: {

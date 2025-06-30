@@ -56,7 +56,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
       <Card className="p-6 bg-neutral-ivory border-2 border-dashed border-accent-aqua/50">
         <div className="text-center">
           <h2 className="font-playfair text-2xl font-bold text-neutral-slate mb-4">
-            Photo Selected ✓
+            Photo selected
           </h2>
           
           <div className="relative inline-block">
@@ -84,7 +84,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
             variant="outline"
             className="mt-4"
           >
-            Choose Different Photo
+            Choose different photo
           </Button>
         </div>
       </Card>
@@ -95,11 +95,11 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
     <Card className="p-8 bg-neutral-ivory border-2 border-dashed border-accent-aqua/50 hover:border-accent-aqua transition-colors">
       <div className="text-center">
         <h2 className="font-playfair text-3xl font-bold text-neutral-slate mb-6">
-          Upload Your Child&apos;s Photo
+          Upload your child&apos;s photo
         </h2>
         
         <p className="text-lg text-neutral-slate/80 mb-8 max-w-md mx-auto">
-          Choose a clear, well-lit photo. One child per photo recommended for best results.
+          Choose a clear, well-lit photo for best results.
         </p>
 
         <div
@@ -136,7 +136,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
                 type="button"
                 className="bg-primary-indigo hover:bg-primary-indigo/90 text-white"
               >
-                Choose Photo
+                Choose photo
               </Button>
             </div>
           </div>

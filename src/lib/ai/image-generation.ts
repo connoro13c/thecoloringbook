@@ -1,5 +1,6 @@
 import { openai, OPENAI_MODELS } from '@/lib/openai'
 import type { CompactLogger } from './compact-logger'
+import type { TieredLogger } from './tiered-logger'
 import { createImageMetrics } from './compact-logger'
 
 export interface GenerationResult {
@@ -12,10 +13,8 @@ export interface GenerationResult {
   }
 }
 
-export async function generateColoringPage(prompt: string, logger?: CompactLogger): Promise<GenerationResult> {
+export async function generateColoringPage(prompt: string, logger?: CompactLogger | TieredLogger): Promise<GenerationResult> {
   try {
-    console.log('🎨 Starting gpt-image-1 generation...')
-    console.log('📝 Prompt:', prompt.substring(0, 200) + '...')
 
     const response = await openai.images.generate({
       model: OPENAI_MODELS.ImageGen,
@@ -36,13 +35,17 @@ export async function generateColoringPage(prompt: string, logger?: CompactLogge
     // Estimate prompt tokens for cost calculation (gpt-image-1 doesn't return usage)
     const estimatedPromptTokens = Math.ceil(prompt.length / 4) // rough estimate: 4 chars per token
     
-    // Log metrics using compact logger if provided
+    // Log metrics using logger if provided
     if (logger) {
-      const metrics = createImageMetrics(estimatedPromptTokens, 'medium')
-      logger.logImage(metrics)
-    } else {
-      console.log('✅ gpt-image-1 generation successful')
-      console.log('📸 Image generated as base64 data')
+      const metrics = createImageMetrics(estimatedPromptTokens, 'high')
+      
+      if ('logImage' in logger) {
+        // CompactLogger
+        logger.logImage(metrics)
+      } else {
+        // TieredLogger - will be handled in generation service
+        logger.debug('Image generation completed', { tokens: estimatedPromptTokens, cost: metrics.cost })
+      }
     }
 
     return {
@@ -77,13 +80,10 @@ export async function generateColoringPage(prompt: string, logger?: CompactLogge
 
 export async function downloadImage(imageUrl: string): Promise<Buffer> {
   try {
-    console.log('📥 Processing generated image...')
-    
     // Handle data URLs (base64) from gpt-image-1
     if (imageUrl.startsWith('data:image/')) {
       const base64Data = imageUrl.split(',')[1]
       const buffer = Buffer.from(base64Data, 'base64')
-      console.log('✅ Image processed from base64 data')
       return buffer
     }
     
@@ -94,8 +94,6 @@ export async function downloadImage(imageUrl: string): Promise<Buffer> {
     }
 
     const buffer = Buffer.from(await response.arrayBuffer())
-    console.log('✅ Image downloaded successfully')
-    
     return buffer
   } catch (error) {
     console.error('❌ Image processing failed:', error)

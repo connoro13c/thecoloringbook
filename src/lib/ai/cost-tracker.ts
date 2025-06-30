@@ -3,11 +3,22 @@
  * Prices derived from openai.com/api/pricing
  */
 
-/** Prices in $ per token */
-const PRICING: Record<string, { in: number; out: number; flat?: number }> = {
+/** Prices in $ per token (from openai.com/api/pricing as of Jan 2025) */
+const PRICING: Record<string, { in: number; out: number }> = {
   'gpt-4o': { in: 0.000005, out: 0.000020 }, // $5 / $20 per 1M tokens
-  'gpt-image-1': { in: 0.000010, out: 0.000040, flat: 0.04 } // $10 / $40 per 1M + ~$0.04 per medium image
+  'gpt-4o-2024-08-06': { in: 0.000005, out: 0.000020 }, // $5 / $20 per 1M tokens
+  'gpt-image-1': { in: 0.000005, out: 0.000040 }, // $5 text input / $40 image output per 1M
+  'gpt-image-1-2025-04-23': { in: 0.000005, out: 0.000040 } // $5 text input / $40 image output per 1M
 }
+
+/** Image generation flat fees by quality */
+const IMAGE_FEES = {
+  'low': 0.01,
+  'medium': 0.04, 
+  'high': 0.17,
+  'standard': 0.04, // alias for medium
+  'hd': 0.17 // alias for high
+} as const
 
 export interface CostCalculation {
   model: string
@@ -21,12 +32,12 @@ export function calculateCost({
   model,
   prompt,
   completion = 0,
-  imageQuality = 'medium'
+  imageQuality = 'high' // Default to high since that's what OpenAI seems to use
 }: {
   model: string
   prompt: number
   completion?: number
-  imageQuality?: 'medium' | 'standard' | 'hd'
+  imageQuality?: keyof typeof IMAGE_FEES
 }): CostCalculation {
   const pricing = PRICING[model]
   if (!pricing) {
@@ -34,7 +45,8 @@ export function calculateCost({
   }
 
   const tokenCost = prompt * pricing.in + completion * pricing.out
-  const flatCost = model === 'gpt-image-1' ? (pricing.flat || 0) : 0
+  const isImageModel = model.includes('gpt-image-1')
+  const flatCost = isImageModel ? IMAGE_FEES[imageQuality] : 0
   const totalCost = tokenCost + flatCost
 
   return {
@@ -53,25 +65,24 @@ export function charge({
   model,
   prompt,
   completion = 0,
-  imageQuality = 'medium'
+  imageQuality = 'high'
 }: {
   model: string
   prompt: number 
   completion?: number
-  imageQuality?: 'medium' | 'standard' | 'hd'
+  imageQuality?: keyof typeof IMAGE_FEES
 }): number {
   const pricing = PRICING[model]
   if (!pricing) {
     return 0
   }
 
-  const cost = (
-    prompt * pricing.in +
-    completion * pricing.out +
-    (model === 'gpt-image-1' ? (pricing.flat || 0) : 0)
-  )
+  const tokenCost = prompt * pricing.in + completion * pricing.out
+  const isImageModel = model.includes('gpt-image-1')
+  const flatCost = isImageModel ? IMAGE_FEES[imageQuality] : 0
+  const cost = tokenCost + flatCost
   
-  return +cost.toFixed(6) // returns e.g. 0.050375
+  return +cost.toFixed(6) // returns e.g. 0.180375
 }
 
 export interface CostSession {

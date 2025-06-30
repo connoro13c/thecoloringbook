@@ -235,7 +235,7 @@ export function createVisionMetrics(
  */
 export function createImageMetrics(
   promptTokens?: number,
-  quality: string = 'medium'
+  quality: string = 'high' // Default to high quality
 ): ImageMetrics {
   const cost = calculateCost({
     model: 'gpt-image-1',
