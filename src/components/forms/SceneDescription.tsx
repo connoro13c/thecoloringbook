@@ -74,9 +74,7 @@ export function SceneDescription({ value, onChange }: SceneDescriptionProps) {
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-neutral-slate/70 drop-shadow-sm">
-          The more details you provide, the better your coloring page will be!
-        </div>
+
       </div>
     </Card>
   )

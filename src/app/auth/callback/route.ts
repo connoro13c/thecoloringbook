@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -6,9 +6,13 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
+  console.log('Auth callback received:', { code: !!code, origin, searchParams: Object.fromEntries(searchParams) })
+
   if (code) {
     const supabase = createClient()
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    console.log('Exchange code result:', { user: !!user, error })
     
     if (!error && user) {
       // Check if email is verified (required per spec)
@@ -17,31 +21,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}?auth=pending-verification`)
       }
 
-      // Check if this is a new user (first time signing up with verified email)
-      const { data: existingCredits } = await supabase
-        .from('user_credits')
-        .select('credits')
-        .eq('user_id', user.id)
-        .single()
-
-      // If no existing credits record, this is a new verified user
-      if (!existingCredits) {
-        try {
-          // Grant 5 free credits for new users (per spec: after email verification)
-          await supabase
-            .from('user_credits')
-            .insert({
-              user_id: user.id,
-              credits: 5,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-
-          console.log(`✅ Granted 5 free credits to verified new user: ${user.email}`)
-        } catch (error) {
-          console.error('Failed to grant free credits:', error)
-        }
-      }
+      // Credits are automatically granted by the grant_initial_credits() trigger
+      // when email_confirmed_at is set during OAuth flow
+      console.log(`✅ User ${user.email} authenticated successfully`)
 
       // TODO: Handle image migration from temp storage to user storage
       // This would involve checking for any temp images and moving them to user's permanent storage
@@ -62,5 +44,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Return the user to an error page with instructions
+  console.log('Auth callback failed - no code or exchange failed')
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }

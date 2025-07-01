@@ -38,6 +38,7 @@ export interface JobContext {
 export class TieredLogger {
   private context: Partial<JobContext> = {}
   private startTime: number = 0
+  private stepTimes: { [key: string]: number } = {}
   private jobId: number
 
   constructor() {
@@ -66,6 +67,18 @@ export class TieredLogger {
         image: { input: 0, output: 0 } 
       }
     }
+
+    // Mark step start times
+    this.stepTimes.upload = Date.now()
+    this.stepTimes.vision = Date.now()
+
+    // Output job header immediately
+    const photoMB = (params.photoSize / 1024 / 1024).toFixed(2)
+    const bar = '─'.repeat(42)
+    
+    console.log(`🖍️  Coloring‑page #${this.jobId}   ⏱ starting...`)
+    console.log(bar)
+    console.log(`📸  Photo       ${photoMB} MB          style=${params.style}  diff=${params.difficulty}`)
   }
 
   /**
@@ -87,6 +100,14 @@ export class TieredLogger {
     this.context.costs!.vision = params.cost.totalCost
     this.context.tokens!.vision = params.tokens
     this.context.analysis = params.analysis
+
+    // Calculate vision step duration
+    const visionDuration = (Date.now() - this.stepTimes.vision) / 1000
+    this.stepTimes.image = Date.now()
+
+    // Output vision step immediately with timing
+    const totalTokens = params.tokens.input + params.tokens.output
+    this.logModelLine('🧠', 'gpt‑4o', totalTokens, params.cost.totalCost, false, visionDuration)
   }
 
   /**
@@ -100,6 +121,13 @@ export class TieredLogger {
     this.context.costs!.image = params.cost.totalCost
     this.context.tokens!.image = params.tokens
     this.context.promptSample = params.promptSample.slice(0, 120)
+
+    // Calculate image step duration
+    const imageDuration = (Date.now() - this.stepTimes.image) / 1000
+    this.stepTimes.storage = Date.now()
+
+    // Output image step immediately with timing
+    this.logModelLine('🎨', 'gpt‑img‑1', params.tokens.input, params.cost.totalCost, true, imageDuration)
   }
 
   /**
@@ -111,16 +139,30 @@ export class TieredLogger {
   }): void {
     this.context.fileName = params.fileName
     this.context.recordId = params.recordId
+
+    // Calculate storage step duration
+    const storageDuration = (Date.now() - this.stepTimes.storage) / 1000
+
+    // Output storage step immediately with timing
+    const bar = '─'.repeat(42)
+    console.log(bar)
+    console.log(`💾  File        ${params.fileName}                   ⏱ ${storageDuration.toFixed(1)}s`)
+    console.log(`🗄️  Record      ${params.recordId.slice(0, 8)}`)
   }
 
   /**
-   * Complete job and output tiered report
+   * Complete job and output final summary
    */
   completeJob(): void {
     this.context.timing = Date.now() - this.startTime
     this.context.costs!.total = this.context.costs!.vision + this.context.costs!.image
     
-    this.outputTieredReport(this.context as JobContext)
+    // Output final summary and details
+    console.log(`💸  Cost total                        $${this.context.costs!.total.toFixed(4)}`)
+    console.log(`✅  Done in ${(this.context.timing! / 1000).toFixed(1)} s`)
+    
+    // Output details section
+    this.outputDetailsSection(this.context as JobContext)
   }
 
   /**
@@ -138,27 +180,11 @@ export class TieredLogger {
   }
 
   /**
-   * Output the tiered report
+   * Output the details section only
    */
-  private outputTieredReport(ctx: JobContext): void {
+  private outputDetailsSection(ctx: JobContext): void {
     const bar = '─'.repeat(42)
-    const photoMB = (ctx.photoSize / 1024 / 1024).toFixed(2)
-
-    // Header
-    console.log(`🖍️  Coloring‑page #${ctx.id}   ⏱ ${(ctx.timing / 1000).toFixed(1)} s`)
-    console.log(bar)
-
-    // Compact ledger
-    console.log(`📸  Photo       ${photoMB} MB          style=${ctx.style}  diff=${ctx.difficulty}`)
-    this.logModelLine('🧠', 'gpt‑4o', ctx.tokens.vision.input + ctx.tokens.vision.output, ctx.costs.vision)
-    this.logModelLine('🎨', 'gpt‑img‑1', ctx.tokens.image.input, ctx.costs.image, true)
     
-    console.log(bar)
-    console.log(`💾  File        ${ctx.fileName}`)
-    console.log(`🗄️  Record      ${ctx.recordId.slice(0, 8)}`)
-    console.log(`💸  Cost total                        $${ctx.costs.total.toFixed(4)}`)
-    console.log('✅  Done')
-
     // Details section
     console.log('╰─ ▶ details ' + '─'.repeat(39))
     console.log(`   • Scene…… "${ctx.scene}"`)
@@ -177,8 +203,9 @@ export class TieredLogger {
   /**
    * Helper for model cost lines
    */
-  private logModelLine(icon: string, model: string, tokens: number, cost: number, hasFlat = false): void {
-    console.log(`${icon}  ${model.padEnd(11)} ${tokens.toString().padStart(5)} tok   $${cost.toFixed(4)}`)
+  private logModelLine(icon: string, model: string, tokens: number, cost: number, hasFlat = false, duration?: number): void {
+    const durationStr = duration ? `⏱ ${duration.toFixed(1)}s` : ''
+    console.log(`${icon}  ${model.padEnd(11)} ${tokens.toString().padStart(5)} tok   $${cost.toFixed(4)}  ${durationStr}`)
     if (hasFlat) {
       const flatCost = 0.17 // High quality image fee
       console.log(' '.repeat(31) + `└─ flat  $${flatCost.toFixed(4)}`)

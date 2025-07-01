@@ -218,15 +218,7 @@ export default function Home() {
                 </div>
               </div>
               
-              {isGeneratingPreview && (
-                <div className="mt-6 p-4 bg-accent-aqua/10 rounded-lg border border-accent-aqua/30">
-                  <p className="text-sm text-neutral-slate/80">
-                    🤖 AI is analyzing your photo and creating a magical coloring page...
-                    <br />
-                    This usually takes 10-20 seconds.
-                  </p>
-                </div>
-              )}
+
             </div>
           )}
 
@@ -260,16 +252,24 @@ export default function Home() {
                     Your coloring page preview is ready!
                   </h3>
                   
-                  <div className="coloring-image-container bg-white p-6 rounded-2xl shadow-lg mb-8 max-w-lg mx-auto relative border border-accent-aqua/20">
-                    {/* Soft watercolor frame */}
-                    <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-accent-aqua/10 to-primary-indigo/10 opacity-30"></div>
-                    <img
-                      src={state.generatedImage}
-                      alt="Generated coloring page preview"
-                      className="coloring-image w-full h-auto rounded-xl relative z-10 shadow-sm"
-                    />
-                    <div className="absolute top-4 right-4 bg-gradient-to-r from-accent-aqua to-secondary-rose text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg">
-                      Preview
+                  <div className="flex flex-col lg:flex-row gap-8 items-start justify-center mb-8">
+                    {/* Image Container */}
+                    <div className="coloring-image-container bg-white p-6 rounded-2xl shadow-lg max-w-lg relative border border-accent-aqua/20">
+                      {/* Soft watercolor frame */}
+                      <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-accent-aqua/10 to-primary-indigo/10 opacity-30"></div>
+                      <img
+                        src={state.generatedImage}
+                        alt="Generated coloring page preview"
+                        className="coloring-image w-full h-auto rounded-xl relative z-10 shadow-sm"
+                      />
+                      <div className="absolute top-4 right-4 bg-gradient-to-r from-accent-aqua to-secondary-rose text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg">
+                        Preview
+                      </div>
+                    </div>
+                    
+                    {/* Credit Badge - Separate container */}
+                    <div className="flex-shrink-0 lg:mt-4">
+                      <CreditBadge onDonateClick={() => setShowPaywall(true)} />
                     </div>
                   </div>
                 </div>
@@ -359,41 +359,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Credit Badge - Mandala style */}
-                <div className="flex justify-center">
-                  <div className="
-                    relative p-5 rounded-2xl 
-                    bg-gradient-to-br from-purple-100 via-pink-50 to-purple-50
-                    border-2 border-purple-200/60 shadow-md
-                    ring-1 ring-primary-indigo/10 max-w-sm mx-auto
-                  ">
-                    <div className="text-center">
-                      <div className="mb-3 flex justify-center text-purple-700">
-                        <svg className="w-8 h-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle 
-                            cx="24" cy="24" r="12" 
-                            stroke="currentColor" 
-                            strokeWidth="1.5" 
-                            fill="none"
-                          />
-                          <circle 
-                            cx="24" cy="24" r="6" 
-                            stroke="currentColor" 
-                            strokeWidth="1.5" 
-                            fill="none"
-                          />
-                          <path 
-                            d="M24 12v6M36 24h-6M24 36v-6M12 24h6" 
-                            stroke="currentColor" 
-                            strokeWidth="1.5" 
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </div>
-                      <CreditBadge onDonateClick={() => setShowPaywall(true)} />
-                    </div>
-                  </div>
-                </div>
+
               </div>
             </div>
           )}

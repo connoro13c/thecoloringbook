@@ -4,13 +4,11 @@ import { generateColoringPage, downloadImage } from '@/lib/ai/image-generation'
 import { uploadToStorage, generateFilename } from '@/lib/storage'
 import { createPage } from '@/lib/database'
 import { createClient } from '@/lib/supabase/server'
-import { CompactLogger } from '@/lib/ai/compact-logger'
-import { TieredLogger } from '@/lib/ai/tiered-logger'
+import { ProgressiveLogger } from '@/lib/ai/progressive-logger'
 import { createVisionMetrics, createImageMetrics } from '@/lib/ai/compact-logger'
 import type { 
   GenerationRequest, 
   GenerationResponse, 
-  PhotoAnalysis, 
   StructuredError,
   ColoringStyle 
 } from '@/types'
@@ -24,8 +22,8 @@ export class GenerationService {
    * Main orchestration method for generating a coloring page
    */
   static async generateColoringPage(request: GenerationRequest): Promise<GenerationResponse> {
-    // Use tiered logger for enhanced output
-    const logger = new TieredLogger()
+    // Use progressive logger for real-time CLI UX
+    const logger = new ProgressiveLogger()
     
     try {
       // Extract base64 data from data URL
@@ -99,7 +97,7 @@ export class GenerationService {
   /**
    * Step 1: Analyze photo with GPT-4o Vision
    */
-  private static async analyzePhoto(base64Data: string, logger: TieredLogger): Promise<PhotoAnalysisResult> {
+  private static async analyzePhoto(base64Data: string, logger: ProgressiveLogger): Promise<PhotoAnalysisResult> {
     const photoAnalysis = await analyzePhoto(base64Data, logger)
     return photoAnalysis
   }
@@ -124,7 +122,7 @@ export class GenerationService {
   /**
    * Step 3: Generate image with gpt-image-1
    */
-  private static async generateImage(prompt: string, logger: TieredLogger) {
+  private static async generateImage(prompt: string, logger: ProgressiveLogger) {
     const generationResult = await generateColoringPage(prompt, logger)
     return generationResult
   }
@@ -132,10 +130,12 @@ export class GenerationService {
   /**
    * Step 4: Download and store image
    */
-  private static async storeImage(imageUrl: string, logger: TieredLogger) {
+  private static async storeImage(imageUrl: string, logger: ProgressiveLogger) {
+    logger.updateStorageProgress('Converting image to buffer');
     const imageBuffer = await downloadImage(imageUrl)
+    
     const filename = generateFilename('coloring')
-    const storageResult = await uploadToStorage(imageBuffer, filename, 'image/png')
+    const storageResult = await uploadToStorage(imageBuffer, filename, 'image/png', logger)
     
     return storageResult
   }
@@ -149,7 +149,9 @@ export class GenerationService {
     difficulty: number
     jpgPath: string
     analysisOutput: PhotoAnalysisResult
-  }, logger: TieredLogger) {
+  }, logger: ProgressiveLogger) {
+    logger.updateStorageProgress('Saving to database');
+    
     // Get current user if authenticated
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -169,7 +171,7 @@ export class GenerationService {
   /**
    * Add vision analysis data from actual OpenAI API response
    */
-  private static addVisionDataToLogger(logger: TieredLogger, photoAnalysis: PhotoAnalysisResult) {
+  private static addVisionDataToLogger(logger: ProgressiveLogger, photoAnalysis: PhotoAnalysisResult) {
     const visionMetrics = createVisionMetrics(
       photoAnalysis.tokens.prompt,
       photoAnalysis.tokens.completion
@@ -197,7 +199,7 @@ export class GenerationService {
   /**
    * Add image generation data from actual OpenAI API response
    */
-  private static addImageDataToLogger(logger: TieredLogger, generationResult: any, dallePrompt: string) {
+  private static addImageDataToLogger(logger: ProgressiveLogger, generationResult: { tokens?: { prompt: number } }, dallePrompt: string) {
     const imageTokens = generationResult.tokens?.prompt || Math.ceil(dallePrompt.length / 4)
     const imageMetrics = createImageMetrics(imageTokens, 'high')
     
@@ -218,7 +220,7 @@ export class GenerationService {
   /**
    * Add storage data from actual file upload and database save
    */
-  private static addStorageDataToLogger(logger: TieredLogger, storageResult: any, pageRecord: any) {
+  private static addStorageDataToLogger(logger: ProgressiveLogger, storageResult: { path: string }, pageRecord: { id: string }) {
     logger.addStorageData({
       fileName: storageResult.path.split('/').pop() || 'unknown',
       recordId: pageRecord.id

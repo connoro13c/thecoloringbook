@@ -1,6 +1,7 @@
 import { openai, OPENAI_MODELS } from '@/lib/openai'
 import type { CompactLogger } from './compact-logger'
 import type { TieredLogger } from './tiered-logger'
+import type { ProgressiveLogger } from './progressive-logger'
 import { createVisionMetrics } from './compact-logger'
 
 export interface PhotoAnalysis {
@@ -29,8 +30,12 @@ export interface PhotoAnalysisResult extends PhotoAnalysis {
   }
 }
 
-export async function analyzePhoto(imageBase64: string, logger?: CompactLogger | TieredLogger): Promise<PhotoAnalysisResult> {
+export async function analyzePhoto(imageBase64: string, logger?: CompactLogger | TieredLogger | ProgressiveLogger): Promise<PhotoAnalysisResult> {
   try {
+    // Update progress if using ProgressiveLogger
+    if (logger && 'updateVisionProgress' in logger) {
+      logger.updateVisionProgress('Uploading image to OpenAI');
+    }
     
     const response = await openai.chat.completions.create({
       model: OPENAI_MODELS.VISION,
@@ -92,6 +97,10 @@ Provide only the JSON object, no other text.`
       temperature: 0.3,
     })
 
+    if (logger && 'updateVisionProgress' in logger) {
+      logger.updateVisionProgress('Analyzing image content');
+    }
+
     const usage = response.usage
     const content = response.choices[0]?.message?.content
     
@@ -115,6 +124,10 @@ Provide only the JSON object, no other text.`
 
     // Parse the JSON response
     try {
+      if (logger && 'updateVisionProgress' in logger) {
+        logger.updateVisionProgress('Parsing analysis results');
+      }
+      
       // Strip markdown code blocks if present
       let cleanContent = content.trim()
       if (cleanContent.startsWith('```json')) {
@@ -124,6 +137,11 @@ Provide only the JSON object, no other text.`
       }
       
       const analysis = JSON.parse(cleanContent) as PhotoAnalysis
+      
+      if (logger && 'updateVisionProgress' in logger) {
+        logger.updateVisionProgress('Analysis complete', 
+          `Age: ${analysis.child.age}, ${analysis.child.appearance.slice(0, 30)}...`);
+      }
       
       return {
         ...analysis,

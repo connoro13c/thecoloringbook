@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { ProgressiveLogger } from './ai/progressive-logger'
 
 // Server-side Supabase client with service role key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -18,10 +19,13 @@ export interface StorageResult {
 export async function uploadToStorage(
   buffer: Buffer,
   path: string,
-  contentType: string = 'image/jpeg'
+  contentType: string = 'image/jpeg',
+  logger?: ProgressiveLogger
 ): Promise<StorageResult> {
   try {
-  
+    if (logger) {
+      logger.updateStorageProgress('Uploading to Supabase storage', `${Math.round(buffer.length / 1024)}KB`);
+    }
 
     const { data, error } = await supabaseAdmin.storage
       .from('temp-pages')
@@ -36,7 +40,9 @@ export async function uploadToStorage(
       throw new Error(`Storage upload failed: ${error.message}`)
     }
 
-
+    if (logger) {
+      logger.updateStorageProgress('Generating public URL');
+    }
 
     // Get public URL
     const { data: publicUrlData } = supabaseAdmin.storage
@@ -57,12 +63,15 @@ export async function uploadUserImage(
   buffer: Buffer,
   userId: string,
   filename: string,
-  contentType: string = 'image/jpeg'
+  contentType: string = 'image/jpeg',
+  logger?: ProgressiveLogger
 ): Promise<StorageResult> {
   const path = `${userId}/${filename}`
   
   try {
-  
+    if (logger) {
+      logger.updateStorageProgress('Uploading to user storage', `${Math.round(buffer.length / 1024)}KB`);
+    }
 
     const { data, error } = await supabaseAdmin.storage
       .from('user-pages')
@@ -77,7 +86,9 @@ export async function uploadUserImage(
       throw new Error(`User storage upload failed: ${error.message}`)
     }
 
-
+    if (logger) {
+      logger.updateStorageProgress('Generating signed URL for user');
+    }
 
     // Get public URL (signed for private bucket)
     const { data: publicUrlData } = supabaseAdmin.storage
