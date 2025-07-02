@@ -5,8 +5,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
 
-// Export createClient function for consistent usage
-export const createClient = () => createSupabaseClient(supabaseUrl, supabaseAnonKey)
+// Export createClient function for consistent usage - returns singleton
+export const createClient = () => supabase
 
 export type Database = {
   public: {
