@@ -13,7 +13,7 @@ import { useGenerationState } from '@/lib/hooks/useGenerationState'
 import { useGeneration } from '@/lib/hooks/useGeneration'
 import { useCredits } from '@/lib/hooks/useCredits'
 import { useAnonymousFiles } from '@/lib/hooks/useAnonymousFiles'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 // Lazy load components that are conditionally rendered
 const SceneDescription = dynamic(() => import('@/components/forms/SceneDescription').then(mod => ({ default: mod.SceneDescription })), {
@@ -32,7 +32,7 @@ export default function Home() {
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
-  const supabase = useMemo(() => createClient(), [])
+  // Use singleton supabase client
   
   const { generate } = useGeneration({
     onGeneratingChange: actions.setGenerating,

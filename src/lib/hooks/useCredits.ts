@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 export function useCredits() {
   const [credits, setCredits] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [user, setUser] = useState<{ id: string } | null>(null)
-  const supabase = createClient()
+  // Use singleton supabase client
 
   // Get current user
   useEffect(() => {

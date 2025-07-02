@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from 'react'
 
 interface AuthModalProps {
@@ -15,7 +15,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAssociating, setIsAssociating] = useState(false)
-  const supabase = createClient()
+  // Use singleton supabase client
 
   // Listen for auth state changes
   useEffect(() => {
