@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { ColoringStyle, GenerationRequest } from '@/types'
+import type { ColoringStyle, GenerationRequest, GenerationResponse } from '@/types'
 
 // File to base64 utility
 async function fileToBase64(file: File): Promise<string> {
@@ -30,7 +30,7 @@ async function generateColoringPage(request: GenerationRequest) {
 
 interface UseGenerationParams {
   onGeneratingChange: (isGenerating: boolean) => void
-  onSuccess: (imageUrl: string) => void
+  onSuccess: (imageUrl: string, response?: GenerationResponse) => void
   onError: (error: string) => void
 }
 
@@ -59,7 +59,7 @@ export function useGeneration({ onGeneratingChange, onSuccess, onError }: UseGen
       })
       
       if (response.success && response.data) {
-        onSuccess(response.data.imageUrl)
+        onSuccess(response.data.imageUrl, response)
         console.log('🎉 Generation complete!', response.data.metadata)
       } else {
         throw new Error(response.error || 'Generation failed')

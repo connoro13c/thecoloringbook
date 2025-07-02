@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20'
+  apiVersion: '2025-05-28.basil'
 })
 
 const CreateCheckoutSchema = z.object({
@@ -16,7 +16,7 @@ const CreateCheckoutSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {

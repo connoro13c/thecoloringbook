@@ -231,8 +231,9 @@ export default React.memo(ColoringPreview);
 - **Manual Moderation**: Admin dashboard for manual content review and user management
 
 ### Data Compliance
-- **Anonymous uploads**: Stored temporarily in temp-pages bucket
-- **Authenticated pages**: Permanent storage in user-pages bucket unless user deletes
+- **Anonymous uploads**: Stored in public/ folder of 'pages' bucket, publicly accessible
+- **Authenticated pages**: Permanent storage in user-specific folders with RLS protection
+- **File Association**: Anonymous uploads moved to user folders upon authentication
 - **GDPR and COPPA compliance**
 - **Explicit consent required for image uploads**
 - Daily DB backups, weekly snapshots (30d retention)
@@ -240,9 +241,15 @@ export default React.memo(ColoringPreview);
 ## Storage Architecture
 ```
 Supabase Storage:
-├── temp-pages/     # Public bucket, temporary storage for anonymous users
-└── user-pages/     # Private bucket, permanent storage for authenticated users
+└── pages/     # Single unified bucket with RLS policies
+  ├── public/  # Anonymous uploads (publicly readable)
+  └── {userId}/ # Authenticated user uploads (private, user-specific folders)
 ```
+
+**Storage Features**:
+- **Automatic File Association**: Anonymous uploads can be moved to user folders on signup
+- **RLS Security**: Public folder for anonymous access, user folders protected by RLS
+- **Service Role Management**: Backend can manage public files for anonymous users
 
 ## Database Schema
 ```sql

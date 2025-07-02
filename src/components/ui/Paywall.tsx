@@ -7,7 +7,6 @@ import { useState } from 'react'
 interface PaywallProps {
   isOpen: boolean
   onClose: () => void
-  onDonate: (amount: number) => Promise<void>
   title?: string
   message?: string
 }
@@ -15,7 +14,6 @@ interface PaywallProps {
 export function Paywall({ 
   isOpen, 
   onClose, 
-  onDonate,
   title = "Get credits to continue",
   message = "You need credits to generate coloring pages. Support our mission and get credits to keep creating!"
 }: PaywallProps) {
@@ -23,11 +21,7 @@ export function Paywall({
 
   if (!isOpen) return null
 
-  const handleDonateSuccess = async (amount: number) => {
-    await onDonate(amount)
-    setShowDonateSheet(false)
-    onClose()
-  }
+
 
   return (
     <>
@@ -94,7 +88,7 @@ export function Paywall({
                 <div>
                   <p className="font-medium text-neutral-slate mb-1">Supporting a great cause</p>
                   <p className="text-sm text-neutral-slate/80">
-                    All proceeds are donated to Stanford Children's Hospital to provide
+                    All proceeds are donated to Stanford Children&apos;s Hospital to provide
                     coloring therapy and creative activities for young patients.
                   </p>
                 </div>
@@ -125,7 +119,6 @@ export function Paywall({
       <DonateSheet
         isOpen={showDonateSheet}
         onClose={() => setShowDonateSheet(false)}
-        onDonate={handleDonateSuccess}
       />
     </>
   )

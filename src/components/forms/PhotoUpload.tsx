@@ -1,21 +1,22 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useDropzone, FileRejection } from 'react-dropzone'
+import Image from 'next/image'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import { UploadIcon, ImageIcon } from '@/components/ui/icons/WatercolorIcons'
 
 interface PhotoUploadProps {
-  onPhotoSelect: (file: File) => void
+  onPhotoSelect: (file: File | null) => void
   selectedPhoto: File | null
 }
 
 export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) {
   const [error, setError] = useState<string | null>(null)
 
-  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     setError(null)
     
     if (rejectedFiles.length > 0) {
@@ -47,7 +48,7 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
   })
 
   const removePhoto = () => {
-    onPhotoSelect(null as any)
+    onPhotoSelect(null)
     setError(null)
   }
 
@@ -60,9 +61,11 @@ export function PhotoUpload({ onPhotoSelect, selectedPhoto }: PhotoUploadProps) 
           </h2>
           
           <div className="relative inline-block">
-            <img
+            <Image
               src={URL.createObjectURL(selectedPhoto)}
               alt="Selected photo"
+              width={400}
+              height={200}
               className="max-w-xs max-h-48 rounded-lg shadow-md object-cover"
             />
             <Button

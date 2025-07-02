@@ -2,17 +2,75 @@
 
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
+  onAuthSuccess?: () => void
+  pendingFilePath?: string
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isAssociating, setIsAssociating] = useState(false)
   const supabase = createClient()
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        // Only process auth events when modal is open
+        if (!isOpen) return
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          setIsLoading(false)
+          
+          // If we have a pending file path, associate it with the user
+          if (pendingFilePath) {
+            setIsAssociating(true)
+            try {
+              const response = await fetch('/api/v1/associate-file', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ filePath: pendingFilePath }),
+              })
+
+              if (!response.ok) {
+                throw new Error('Failed to associate file with user')
+              }
+
+              const result = await response.json()
+              console.log('✅ File associated with user:', result)
+              
+              // Call success callback if provided
+              if (onAuthSuccess) {
+                onAuthSuccess()
+              }
+            } catch (error) {
+              console.error('❌ File association failed:', error)
+              setError('Failed to save your coloring page. Please try again.')
+              setIsAssociating(false)
+              return
+            }
+          }
+          
+          setIsAssociating(false)
+          onClose() // Close modal after successful auth and file association
+          
+          // Call success callback if provided
+          if (onAuthSuccess && !pendingFilePath) {
+            onAuthSuccess()
+          }
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [isOpen, supabase.auth, pendingFilePath, onAuthSuccess, onClose])
 
   if (!isOpen) return null
 
@@ -62,10 +120,13 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </svg>
           </div>
           <h2 className="font-playfair text-xl font-bold text-neutral-slate mb-2">
-            Create account to download
+            {pendingFilePath ? 'Save this coloring page' : 'Create account to download'}
           </h2>
           <p className="text-neutral-slate/70">
-            Sign in to save your coloring pages and download high-resolution files.
+            {pendingFilePath 
+              ? 'Sign in to save this page to your account and access high-quality downloads.'
+              : 'Sign in to save your coloring pages and download high-resolution files.'
+            }
           </p>
         </div>
 
@@ -107,13 +168,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <div className="space-y-3">
             <Button
               onClick={handleGoogleSignIn}
-              disabled={isLoading}
+              disabled={isLoading || isAssociating}
               className="w-full bg-primary-indigo hover:bg-primary-indigo/90 text-white font-medium py-3"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Signing in...
+                </div>
+              ) : isAssociating ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving your page...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -143,9 +209,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             <Button
               variant="outline"
               onClick={onClose}
+              disabled={isAssociating}
               className="w-full"
             >
-              Maybe later
+              {pendingFilePath ? 'Continue as guest' : 'Maybe later'}
             </Button>
           </div>
         </div>

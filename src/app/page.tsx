@@ -1,7 +1,8 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import Image from 'next/image'
+import { useState, useEffect, useMemo } from 'react'
 import { Hero } from '@/components/layout/Hero'
 import { PhotoUpload } from '@/components/forms/PhotoUpload'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { AuthModal } from '@/components/ui/AuthModal'
 import { useGenerationState } from '@/lib/hooks/useGenerationState'
 import { useGeneration } from '@/lib/hooks/useGeneration'
 import { useCredits } from '@/lib/hooks/useCredits'
+import { useAnonymousFiles } from '@/lib/hooks/useAnonymousFiles'
 import { createClient } from '@/lib/supabase/client'
 
 // Lazy load components that are conditionally rendered
@@ -25,14 +27,31 @@ const StyleSelection = dynamic(() => import('@/components/forms/StyleSelection')
 export default function Home() {
   const { state, actions } = useGenerationState()
   const { hasCredits, useCredits: deductCredits } = useCredits()
+  const { saveAnonymousFile, getLatestAnonymousFile, clearAnonymousFiles } = useAnonymousFiles()
   const [showPaywall, setShowPaywall] = useState(false)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
   
   const { generate } = useGeneration({
     onGeneratingChange: actions.setGenerating,
-    onSuccess: actions.setGeneratedImage,
+    onSuccess: (imageUrl: string, response?: { data?: { imagePath?: string } }) => {
+      actions.setGeneratedImage(imageUrl)
+      
+      // For anonymous previews, save file path to localStorage
+      if (response?.data?.imagePath && response.data.imagePath.startsWith('public/')) {
+        saveAnonymousFile(
+          response.data.imagePath,
+          imageUrl,
+          {
+            sceneDescription: state.sceneDescription,
+            style: state.selectedStyle || undefined,
+            difficulty: 3
+          }
+        )
+      }
+    },
     onError: actions.setError
   })
 
@@ -74,18 +93,37 @@ export default function Home() {
       return
     }
 
+    if (!state.selectedPhoto || !state.selectedStyle) {
+      console.error('Missing required fields for generation')
+      return
+    }
+
     await generate({
       photo: state.selectedPhoto,
-      sceneDescription: state.sceneDescription,
+      sceneDescription: state.sceneDescription || '',
       style: state.selectedStyle,
       difficulty: 3,
       isPreview: false
     })
   }
 
-  const handleDonate = async (amount: number) => {
-    // This will be handled by DonateSheet component
-    console.log('Donate:', amount)
+
+
+  // Handle "Save this page" for anonymous users
+  const handleSaveThisPage = () => {
+    const latestFile = getLatestAnonymousFile()
+    if (latestFile) {
+      setPendingFilePath(latestFile.filePath)
+      setShowAuthModal(true)
+    }
+  }
+
+  // Handle successful auth with file association
+  const handleAuthSuccess = () => {
+    // Clear anonymous files from localStorage since they're now saved to user account
+    clearAnonymousFiles()
+    setPendingFilePath(null)
+    console.log('✅ Anonymous files cleared after successful auth')
   }
 
   // Handle auth and payment redirects
@@ -257,10 +295,13 @@ export default function Home() {
                     <div className="coloring-image-container bg-white p-6 rounded-2xl shadow-lg max-w-lg relative border border-accent-aqua/20">
                       {/* Soft watercolor frame */}
                       <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-accent-aqua/10 to-primary-indigo/10 opacity-30"></div>
-                      <img
+                      <Image
                         src={state.generatedImage}
                         alt="Generated coloring page preview"
                         className="coloring-image w-full h-auto rounded-xl relative z-10 shadow-sm"
+                        width={512}
+                        height={512}
+                        unoptimized
                       />
                       <div className="absolute top-4 right-4 bg-gradient-to-r from-accent-aqua to-secondary-rose text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg">
                         Preview
@@ -274,7 +315,50 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-8">
+                <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8">
+                  {/* Save this page - for anonymous users */}
+                  <div
+                    onClick={handleSaveThisPage}
+                    className="
+                      relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                      bg-gradient-to-br from-purple-100 via-pink-50 to-rose-50
+                      border-2 border-purple-200/60 shadow-md hover:shadow-lg
+                      hover:border-primary-indigo ring-1 ring-primary-indigo/10
+                    "
+                  >
+                    <div className="text-center">
+                      <div className="mb-4 flex justify-center text-purple-700">
+                        <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path 
+                            d="M12 36V12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v24" 
+                            stroke="currentColor" 
+                            strokeWidth="2.5" 
+                            strokeLinecap="round"
+                          />
+                          <path 
+                            d="M32 36H8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" 
+                            stroke="currentColor" 
+                            strokeWidth="2.5" 
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                          <path 
+                            d="M40 36h-8M16 24h8M16 28h12" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </div>
+                      <h3 className="font-playfair text-lg font-bold text-purple-800 mb-2">
+                        Save this page
+                      </h3>
+                      <p className="text-sm text-purple-700/80">
+                        Create account to save & download
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Download and Save - Classic Cartoon style */}
                   <div
                     onClick={handleGenerateFullRes}
@@ -311,10 +395,10 @@ export default function Home() {
                         </svg>
                       </div>
                       <h3 className="font-playfair text-lg font-bold text-emerald-800 mb-2">
-                        Download & Save
+                        Download high-res
                       </h3>
                       <p className="text-sm text-emerald-700/80">
-                        High-res JPG + PDF • Requires account
+                        JPG + PDF • Requires credits
                       </p>
                     </div>
                   </div>
@@ -371,13 +455,14 @@ export default function Home() {
       <Paywall
         isOpen={showPaywall}
         onClose={() => setShowPaywall(false)}
-        onDonate={handleDonate}
       />
 
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={handleAuthSuccess}
+        pendingFilePath={pendingFilePath || undefined}
       />
     </main>
   )

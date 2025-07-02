@@ -1,7 +1,7 @@
 import { analyzePhoto, type PhotoAnalysisResult } from '@/lib/ai/photo-analysis'
 import { buildDallePrompt } from '@/lib/ai/prompt-builder'
-import { generateColoringPage, downloadImage } from '@/lib/ai/image-generation'
-import { uploadToStorage, generateFilename } from '@/lib/storage'
+import { generateColoringPage as generateColoringPageAI, downloadImage } from '@/lib/ai/image-generation'
+import { uploadUserImage, generateFilename } from '@/lib/storage'
 import { createPage } from '@/lib/database'
 import { createClient } from '@/lib/supabase/server'
 import { ProgressiveLogger } from '@/lib/ai/progressive-logger'
@@ -123,7 +123,7 @@ export class GenerationService {
    * Step 3: Generate image with gpt-image-1
    */
   private static async generateImage(prompt: string, logger: ProgressiveLogger) {
-    const generationResult = await generateColoringPage(prompt, logger)
+    const generationResult = await generateColoringPageAI(prompt, logger)
     return generationResult
   }
 
@@ -134,10 +134,61 @@ export class GenerationService {
     logger.updateStorageProgress('Converting image to buffer');
     const imageBuffer = await downloadImage(imageUrl)
     
+    // Check if user is authenticated
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
     const filename = generateFilename('coloring')
-    const storageResult = await uploadToStorage(imageBuffer, filename, 'image/png', logger)
+    
+    let storageResult;
+    if (user) {
+      // For authenticated users, upload directly to their folder
+      logger.updateStorageProgress('Uploading to user storage');
+      storageResult = await uploadUserImage(imageBuffer, user.id, filename, 'image/png', logger)
+    } else {
+      // For anonymous users, upload to public folder using legacy method
+      // (since uploadAnonymousFile expects File objects from frontend)
+      logger.updateStorageProgress('Uploading to public storage');
+      storageResult = await this.uploadBufferToPublic(imageBuffer, filename)
+    }
     
     return storageResult
+  }
+
+  /**
+   * Helper: Upload buffer to public folder for anonymous users
+   */
+  private static async uploadBufferToPublic(buffer: Buffer, filename: string) {
+    const { createClient } = await import('@supabase/supabase-js')
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+    
+    const filePath = `public/${filename}`
+    
+    const { data, error } = await supabaseAdmin.storage
+      .from('pages')
+      .upload(filePath, buffer, {
+        contentType: 'image/png',
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (error) {
+      console.error('❌ Anonymous storage upload failed:', error)
+      throw new Error(`Anonymous storage upload failed: ${error.message}`)
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('pages')
+      .getPublicUrl(data.path)
+
+    return {
+      path: data.path,
+      publicUrl: publicUrlData.publicUrl
+    }
   }
 
   /**
@@ -299,3 +350,6 @@ export class GenerationService {
     }
   }
 }
+
+// Export static method for testing
+export const generateColoringPage = GenerationService.generateColoringPage

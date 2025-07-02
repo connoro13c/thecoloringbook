@@ -4,7 +4,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-06-20'
+  apiVersion: '2025-05-28.basil'
 })
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -12,7 +12,8 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
-    const signature = headers().get('stripe-signature')!
+    const headersList = await headers()
+    const signature = headersList.get('stripe-signature')!
 
     let event: Stripe.Event
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Handle successful payment
     if (event.type === 'checkout.session.completed') {

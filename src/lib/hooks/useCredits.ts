@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useEffect as useEffectReact } from 'react'
 
 export function useCredits() {
   const [credits, setCredits] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<{ id: string } | null>(null)
   const supabase = createClient()
 
   // Get current user
@@ -27,7 +26,7 @@ export function useCredits() {
   }, [supabase])
 
   // Fetch credits
-  const fetchCredits = async () => {
+  const fetchCredits = useCallback(async () => {
     if (!user) {
       setCredits(0)
       setLoading(false)
@@ -54,7 +53,7 @@ export function useCredits() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, supabase])
 
   // Use credits
   const useCredits = async (amount: number): Promise<boolean> => {
@@ -110,7 +109,7 @@ export function useCredits() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, supabase])
+  }, [user, supabase, fetchCredits])
 
   return {
     credits,

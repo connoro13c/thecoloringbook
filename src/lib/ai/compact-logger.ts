@@ -241,7 +241,7 @@ export function createImageMetrics(
     model: 'gpt-image-1',
     prompt: promptTokens || 0,
     completion: 0,
-    imageQuality: quality as any
+    imageQuality: quality as 'standard' | 'hd'
   })
 
   return {

@@ -1,4 +1,5 @@
 import { AuthTester } from '@/components/dev/AuthTester'
+import Link from 'next/link'
 
 export default function AuthTestPage() {
   return (
@@ -12,12 +13,12 @@ export default function AuthTestPage() {
         <AuthTester />
         
         <div className="text-center mt-6">
-          <a 
+          <Link 
             href="/"
             className="text-indigo-600 hover:text-indigo-800 underline"
           >
             ← Back to main app
-          </a>
+          </Link>
         </div>
       </div>
     </div>

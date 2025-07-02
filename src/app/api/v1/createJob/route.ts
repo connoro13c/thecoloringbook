@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedRequest = CreateJobSchema.parse(body)
 
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // For non-preview (full-res) generation, check authentication and credits
     if (!validatedRequest.isPreview) {

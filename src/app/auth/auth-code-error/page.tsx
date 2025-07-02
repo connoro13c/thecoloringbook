@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function AuthCodeError() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-ivory">
@@ -6,12 +8,12 @@ export default function AuthCodeError() {
         <p className="text-neutral-slate mb-6">
           There was an error with the authentication process. Please try signing in again.
         </p>
-        <a 
+        <Link 
           href="/" 
           className="inline-block bg-primary-indigo text-white px-6 py-3 rounded-lg font-medium hover:bg-opacity-90 transition-all"
         >
           Return to Home
-        </a>
+        </Link>
       </div>
     </div>
   )

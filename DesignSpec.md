@@ -40,9 +40,10 @@ Download & Confirmation
 
 Hero Section:
 
-Headline: "Bring Your Kids' Adventures to Life!"
+Headline: "Coloring pages
+crafted from their imagination"
 
-Subheading: "Instantly create personalized, printable coloring pages from your child's photos."
+Subheading: "Create personalized, printable black and white coloring pages with your child's photos."
 
 CTA: "Create Your Coloring Page"
 

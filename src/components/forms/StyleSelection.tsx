@@ -1,29 +1,8 @@
 'use client'
 
 import { Card } from '@/components/ui/card'
-import type { ColoringStyle, StyleOption } from '@/types'
+import type { ColoringStyle } from '@/types'
 import { ClassicCartoonIcon, GhibliIcon, MandalaIcon } from '@/components/ui/icons/WatercolorIcons'
-
-const styles = [
-  {
-    id: 'classic' as ColoringStyle,
-    name: 'Classic Cartoon',
-    description: 'Clean lines, perfect for young artists.',
-    icon: ClassicCartoonIcon
-  },
-  {
-    id: 'ghibli' as ColoringStyle,
-    name: 'Ghibli Style',
-    description: 'Beautiful, detailed illustrations.',
-    icon: GhibliIcon
-  },
-  {
-    id: 'mandala' as ColoringStyle,
-    name: 'Mandala/Pattern',
-    description: 'Intricate designs for mindfulness coloring.',
-    icon: MandalaIcon
-  }
-]
 
 interface StyleSelectionProps {
   selectedStyle: ColoringStyle | null

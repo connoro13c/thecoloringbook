@@ -58,7 +58,7 @@ export const WatercolorBackground: React.FC = () => {
     }
     
     return Array.from({ length: 12 }, (_, i) => generateShape(i)) // More shapes for richer effect
-  }, [isClient])
+  }, [])
 
   // Generate bokeh light effects
   const bokehLights = useMemo(() => {
@@ -73,7 +73,7 @@ export const WatercolorBackground: React.FC = () => {
     })
     
     return Array.from({ length: 25 }, (_, i) => generateBokeh(i))
-  }, [isClient])
+  }, [])
 
   if (!isClient) {
     return null
