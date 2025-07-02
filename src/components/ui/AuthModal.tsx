@@ -78,6 +78,8 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     setIsLoading(true)
     setError(null)
     
+    console.log('Starting Google OAuth with redirect:', `${window.location.origin}/auth/callback`)
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -91,8 +93,11 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     })
 
     if (error) {
+      console.error('OAuth initiation error:', error)
       setError(error.message)
       setIsLoading(false)
+    } else {
+      console.log('OAuth initiated successfully, redirecting to Google...')
     }
   }
 
