@@ -7,6 +7,7 @@ import {
   uploadUserImage, 
   generateFilename 
 } from './storage'
+import type { ProgressiveLogger } from './ai/progressive-logger'
 
 // Mock Supabase client
 const mockUpload = jest.fn()
@@ -96,7 +97,7 @@ describe('Storage Functions', () => {
       info: jest.fn(),
       debug: jest.fn(),
       warn: jest.fn()
-    } as unknown as CompactLogger
+    } as unknown as ProgressiveLogger
       
       mockUpload.mockResolvedValue({
         data: { path: 'public/test-uuid-1234-test.jpg' },
@@ -157,7 +158,7 @@ describe('Storage Functions', () => {
         info: jest.fn(),
         debug: jest.fn(),
         warn: jest.fn()
-      } as unknown as CompactLogger
+      } as unknown as ProgressiveLogger
       
       mockMove.mockResolvedValue({ error: null })
 

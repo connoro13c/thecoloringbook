@@ -2,13 +2,15 @@
 
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Hero } from '@/components/layout/Hero'
 import { PhotoUpload } from '@/components/forms/PhotoUpload'
 import { Button } from '@/components/ui/button'
 import { CreditBadge } from '@/components/ui/CreditBadge'
 import { Paywall } from '@/components/ui/Paywall'
 import { AuthModal } from '@/components/ui/AuthModal'
+import { DonationModal } from '@/components/forms/DonationModal'
+import { TestModeToggle } from '@/components/ui/TestModeToggle'
 import { useGenerationState } from '@/lib/hooks/useGenerationState'
 import { useGeneration } from '@/lib/hooks/useGeneration'
 import { useCredits } from '@/lib/hooks/useCredits'
@@ -26,18 +28,25 @@ const StyleSelection = dynamic(() => import('@/components/forms/StyleSelection')
 
 export default function Home() {
   const { state, actions } = useGenerationState()
-  const { hasCredits, useCredits: deductCredits } = useCredits()
+  const { } = useCredits() // Keep for potential future use
   const { saveAnonymousFile, getLatestAnonymousFile, clearAnonymousFiles } = useAnonymousFiles()
   const [showPaywall, setShowPaywall] = useState(false)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
+  const [showDonationModal, setShowDonationModal] = useState(false)
+  const [currentPageId, setCurrentPageId] = useState<string | null>(null)
   // Use singleton supabase client
   
   const { generate } = useGeneration({
     onGeneratingChange: actions.setGenerating,
-    onSuccess: (imageUrl: string, response?: { data?: { imagePath?: string } }) => {
+    onSuccess: (imageUrl: string, response?: { data?: { imagePath?: string; pageId?: string } }) => {
       actions.setGeneratedImage(imageUrl)
+      
+      // Store page ID for donation modal
+      if (response?.data?.pageId) {
+        setCurrentPageId(response.data.pageId)
+      }
       
       // For anonymous previews, save file path to localStorage
       if (response?.data?.imagePath && response.data.imagePath.startsWith('public/')) {
@@ -73,8 +82,8 @@ export default function Home() {
     }
   }
 
-  // Generate full-res for authenticated users with credits
-  const handleGenerateFullRes = async () => {
+  // Handle donation modal for high-res download
+  const handleDonateForHighRes = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -82,29 +91,12 @@ export default function Home() {
       return
     }
 
-    if (!hasCredits) {
-      setShowPaywall(true)
+    if (!currentPageId) {
+      console.error('No page ID available for donation')
       return
     }
 
-    const success = await deductCredits(1)
-    if (!success) {
-      setShowPaywall(true)
-      return
-    }
-
-    if (!state.selectedPhoto || !state.selectedStyle) {
-      console.error('Missing required fields for generation')
-      return
-    }
-
-    await generate({
-      photo: state.selectedPhoto,
-      sceneDescription: state.sceneDescription || '',
-      style: state.selectedStyle,
-      difficulty: 3,
-      isPreview: false
-    })
+    setShowDonationModal(true)
   }
 
 
@@ -310,7 +302,7 @@ export default function Home() {
                     
                     {/* Credit Badge - Separate container */}
                     <div className="flex-shrink-0 lg:mt-4">
-                      <CreditBadge onDonateClick={() => setShowPaywall(true)} />
+                      <CreditBadge onDonateClick={handleDonateForHighRes} />
                     </div>
                   </div>
                 </div>
@@ -359,9 +351,9 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Download and Save - Classic Cartoon style */}
+                  {/* Donate for high-res download */}
                   <div
-                    onClick={handleGenerateFullRes}
+                    onClick={handleDonateForHighRes}
                     className="
                       relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
                       bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-50
@@ -395,10 +387,10 @@ export default function Home() {
                         </svg>
                       </div>
                       <h3 className="font-playfair text-lg font-bold text-emerald-800 mb-2">
-                        Download high-res
+                        Donate for High-Res
                       </h3>
                       <p className="text-sm text-emerald-700/80">
-                        JPG + PDF • Requires credits
+                        PDF + PNG • $1+ donation
                       </p>
                     </div>
                   </div>
@@ -464,6 +456,22 @@ export default function Home() {
         onAuthSuccess={handleAuthSuccess}
         pendingFilePath={pendingFilePath || undefined}
       />
+
+      {/* Donation Modal */}
+      {currentPageId && (
+        <DonationModal
+          open={showDonationModal}
+          onOpenChange={setShowDonationModal}
+          pageId={currentPageId}
+          onDonationSuccess={() => {
+            setShowDonationModal(false)
+            console.log('✅ Donation successful!')
+          }}
+        />
+      )}
+
+      {/* Test Mode Toggle - development only */}
+      <TestModeToggle />
     </main>
   )
 }

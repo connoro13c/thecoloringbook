@@ -1,103 +1,124 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
-import Stripe from 'stripe'
-import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server';
+import { stripe } from '@/lib/stripe';
+import { createServiceClient } from '@/lib/supabase/server';
+import { createHighResVersions } from '@/lib/services/file-generation';
+import { sendDonationReceipt } from '@/lib/services/email-service';
+import { headers } from 'next/headers';
+import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil'
-})
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.text()
-    const headersList = await headers()
-    const signature = headersList.get('stripe-signature')!
+    const body = await request.text();
+    const headersList = await headers();
+    const sig = headersList.get('stripe-signature')!;
 
-    let event: Stripe.Event
+    let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
+      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
     } catch (err) {
-      console.error('❌ Webhook signature verification failed:', err)
-      return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
+      console.error('Webhook signature verification failed:', err);
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    const supabase = await createClient()
-
-    // Handle successful payment
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session
-
-      if (session.payment_status === 'paid' && session.metadata?.user_id) {
-        const userId = session.metadata.user_id
-        const amountCents = session.amount_total || 0
-        const creditsToGrant = Math.floor(amountCents / 25) // $0.25 per credit
-
-        try {
-          // Add credits to user
-          const { error: creditError } = await supabase
-            .rpc('add_credits', { 
-              user_uuid: userId, 
-              credit_count: creditsToGrant 
-            })
-
-          if (creditError) {
-            console.error('❌ Error adding credits:', creditError)
-            throw creditError
-          }
-
-          // Log donation
-          const { error: donationError } = await supabase
-            .from('donations')
-            .insert({
-              user_id: userId,
-              stripe_payment_id: session.payment_intent as string,
-              amount_cents: amountCents,
-              credits_granted: creditsToGrant,
-              stripe_status: 'completed'
-            })
-
-          if (donationError) {
-            console.error('❌ Error logging donation:', donationError)
-            // Don't throw here - credits were already added
-          }
-
-          console.log(`✅ Successfully processed donation: ${creditsToGrant} credits for user ${userId}`)
-
-        } catch (error) {
-          console.error('❌ Error processing successful payment:', error)
-          return NextResponse.json({ error: 'Error processing payment' }, { status: 500 })
-        }
-      }
-    }
-
-    // Handle failed payments
-    if (event.type === 'checkout.session.async_payment_failed') {
-      const session = event.data.object as Stripe.Checkout.Session
+      const session = event.data.object as Stripe.Checkout.Session;
       
-      if (session.metadata?.user_id) {
-        const { error } = await supabase
-          .from('donations')
-          .insert({
-            user_id: session.metadata.user_id,
-            stripe_payment_id: session.payment_intent as string,
-            amount_cents: session.amount_total || 0,
-            credits_granted: 0,
-            stripe_status: 'failed'
-          })
+      // Extract metadata
+      const pageId = session.metadata?.pageId;
+      const userId = session.metadata?.userId;
 
-        if (error) {
-          console.error('❌ Error logging failed payment:', error)
-        }
+      if (!pageId || !userId) {
+        console.error('Missing required metadata in session:', session.id);
+        return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
       }
+
+      // Use service role client to bypass RLS
+      const supabase = createServiceClient();
+
+      try {
+        // Step 1: Get the original page data to access the generated image
+        const { data: pageData, error: pageError } = await supabase
+          .from('pages')
+          .select('jpg_path')
+          .eq('id', pageId)
+          .single();
+
+        if (pageError || !pageData) {
+          console.error('Error fetching page data:', pageError);
+          return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+        }
+
+        // Step 2: Get the image data from storage
+        const { data: imageData, error: downloadError } = await supabase.storage
+          .from('pages')
+          .download(pageData.jpg_path);
+
+        if (downloadError || !imageData) {
+          console.error('Error downloading image:', downloadError);
+          return NextResponse.json({ error: 'Failed to download original image' }, { status: 500 });
+        }
+
+        // Step 3: Convert image to base64 for processing
+        const imageBuffer = await imageData.arrayBuffer();
+        const imageBase64 = `data:image/jpeg;base64,${Buffer.from(imageBuffer).toString('base64')}`;
+
+        // Step 4: Generate high-resolution PDF and PNG files
+        console.log(`🎨 Creating high-res files for payment: ${session.id}`);
+        const fileResult = await createHighResVersions(pageId, userId, imageBase64);
+
+        // Step 5: Insert download record with permanent file paths
+        const { error: insertError } = await supabase
+          .from('downloads')
+          .upsert({
+            user_id: userId,
+            page_id: pageId,
+            stripe_session_id: session.id,
+            pdf_path: fileResult.pdfPath,  // Store permanent path, not URL
+            png_path: fileResult.pngPath,  // Store permanent path, not URL
+            storage_tier: 'hot',
+            expires_at: null, // No expiry for file paths
+            last_accessed_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,page_id',
+            ignoreDuplicates: false,
+          });
+
+        if (insertError) {
+          console.error('Error inserting download record:', insertError);
+          return NextResponse.json({ error: 'Database error' }, { status: 500 });
+        }
+
+        console.log(`✅ Successfully processed payment and created files for page ${pageId}`);
+
+        // Step 6: Send donation receipt email (async, don't block on errors)
+        try {
+          await sendDonationReceipt({
+            userEmail: session.customer_email || session.customer_details?.email || '',
+            userName: session.customer_details?.name || undefined,
+            amount: session.amount_total || 0,
+            donationDate: new Date().toISOString(),
+            stripeSessionId: session.id,
+            pageId: pageId
+          });
+        } catch (emailError) {
+          console.error('Error sending donation receipt:', emailError);
+          // Don't fail the webhook for email errors
+        }
+
+      } catch (fileError) {
+        console.error('Error generating high-res files:', fileError);
+        return NextResponse.json({ error: 'Failed to generate high-resolution files' }, { status: 500 });
+      }
+
+      console.log('Successfully processed payment for page:', pageId);
     }
 
-    return NextResponse.json({ received: true })
-
+    return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('❌ Webhook handler error:', error)
-    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 })
+    console.error('Webhook handler error:', error);
+    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
   }
 }

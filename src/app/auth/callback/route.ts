@@ -8,9 +8,12 @@ export async function GET(request: NextRequest) {
 
   console.log('Auth callback received:', { code: !!code, origin, searchParams: Object.fromEntries(searchParams) })
 
+  let authError: { message?: string } | null = null;
+  
   if (code) {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code)
+    authError = error;
     
     console.log('Exchange code result:', { user: !!user, error: error?.message || null, fullError: error })
     
@@ -44,6 +47,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Return the user to an error page with instructions
-  console.log('Auth callback failed - no code or exchange failed', { hasCode: !!code, error })
+  console.log('Auth callback failed - no code or exchange failed', { hasCode: !!code, error: authError?.message || null })
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }

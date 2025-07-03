@@ -1,0 +1,75 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="white"/>
+  
+  <!-- Child figure -->
+  <g stroke="black" stroke-width="3" fill="none">
+    <!-- Head -->
+    <circle cx="512" cy="200" r="60"/>
+    <!-- Hair -->
+    <path d="M470 150 Q480 120 500 130 Q520 110 540 130 Q560 120 570 150"/>
+    <!-- Eyes -->
+    <circle cx="490" cy="190" r="5"/>
+    <circle cx="534" cy="190" r="5"/>
+    <!-- Nose -->
+    <path d="M512 200 L512 210"/>
+    <!-- Mouth -->
+    <path d="M500 220 Q512 230 524 220"/>
+    
+    <!-- Body -->
+    <rect x="480" y="260" width="64" height="100" rx="10"/>
+    <!-- Arms -->
+    <path d="M480 290 L440 320 L450 380"/>
+    <path d="M544 290 L584 320 L574 380"/>
+    <!-- Legs -->
+    <path d="M490 360 L490 450 L480 480"/>
+    <path d="M534 360 L534 450 L544 480"/>
+  </g>
+  
+  <!-- Unicorn -->
+  <g stroke="black" stroke-width="3" fill="none">
+    <!-- Body -->
+    <ellipse cx="300" cy="500" rx="120" ry="80"/>
+    <!-- Head -->
+    <ellipse cx="180" cy="420" rx="50" ry="60"/>
+    <!-- Horn -->
+    <path d="M160 360 L150 320 L170 320 Z"/>
+    <!-- Spiral on horn -->
+    <path d="M155 350 Q165 340 155 330 Q145 320 155 310"/>
+    <!-- Mane -->
+    <path d="M200 380 Q220 360 240 380 Q260 360 280 380"/>
+    <!-- Legs -->
+    <path d="M250 580 L250 650"/>
+    <path d="M300 580 L300 650"/>
+    <path d="M350 580 L350 650"/>
+    <path d="M200 580 L200 650"/>
+    <!-- Tail -->
+    <path d="M420 500 Q460 480 480 520 Q500 540 480 560"/>
+    <!-- Eye -->
+    <circle cx="170" cy="410" r="8"/>
+    <!-- Wings -->
+    <path d="M280 450 Q320 430 340 460 Q360 480 340 500 Q320 520 280 500"/>
+  </g>
+  
+  <!-- Clouds -->
+  <g stroke="black" stroke-width="2" fill="none">
+    <path d="M100 150 Q120 130 140 150 Q160 130 180 150 Q200 140 220 150 L220 180 Q200 190 180 180 Q160 190 140 180 Q120 190 100 180 Z"/>
+    <path d="M700 200 Q720 180 740 200 Q760 180 780 200 Q800 190 820 200 L820 230 Q800 240 780 230 Q760 240 740 230 Q720 240 700 230 Z"/>
+    <path d="M600 100 Q620 80 640 100 Q660 80 680 100 L680 130 Q660 140 640 130 Q620 140 600 130 Z"/>
+  </g>
+  
+  <!-- Rainbow -->
+  <g stroke="black" stroke-width="2" fill="none">
+    <path d="M50 300 Q200 250 350 300"/>
+    <path d="M55 310 Q200 260 345 310"/>
+    <path d="M60 320 Q200 270 340 320"/>
+    <path d="M65 330 Q200 280 335 330"/>
+  </g>
+  
+  <!-- Stars -->
+  <g stroke="black" stroke-width="2" fill="none">
+    <path d="M800 150 L810 170 L830 170 L815 185 L820 205 L800 195 L780 205 L785 185 L770 170 L790 170 Z"/>
+    <path d="M850 100 L855 110 L865 110 L857 118 L860 128 L850 123 L840 128 L843 118 L835 110 L845 110 Z"/>
+    <path d="M750 120 L755 130 L765 130 L757 138 L760 148 L750 143 L740 148 L743 138 L735 130 L745 130 Z"/>
+  </g>
+</svg>

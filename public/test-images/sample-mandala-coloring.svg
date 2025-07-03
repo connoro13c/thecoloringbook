@@ -1,0 +1,149 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="white"/>
+  
+  <!-- Central child figure -->
+  <g stroke="black" stroke-width="2" fill="none">
+    <!-- Head -->
+    <circle cx="512" cy="350" r="40"/>
+    <!-- Hair with mandala patterns -->
+    <path d="M480 320 Q490 300 510 310 Q530 290 550 310 Q560 300 570 320"/>
+    <circle cx="485" cy="315" r="8"/>
+    <circle cx="539" cy="315" r="8"/>
+    <path d="M485 315 L493 307"/>
+    <path d="M539 315 L531 307"/>
+    
+    <!-- Eyes -->
+    <circle cx="500" cy="345" r="3"/>
+    <circle cx="524" cy="345" r="3"/>
+    
+    <!-- Body in meditation pose -->
+    <ellipse cx="512" cy="450" rx="50" ry="60"/>
+    <!-- Arms crossed -->
+    <path d="M462 430 Q480 440 500 430"/>
+    <path d="M562 430 Q544 440 524 430"/>
+    <!-- Legs crossed -->
+    <path d="M480 510 Q500 520 520 510"/>
+    <path d="M504 510 Q512 520 520 510"/>
+  </g>
+  
+  <!-- Outer mandala ring -->
+  <g stroke="black" stroke-width="2" fill="none">
+    <circle cx="512" cy="512" r="450"/>
+    <circle cx="512" cy="512" r="420"/>
+    <circle cx="512" cy="512" r="390"/>
+    
+    <!-- Petal patterns around outer ring -->
+    <g transform="translate(512,512)">
+      <g>
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(30)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(60)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(90)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(120)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(150)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(180)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(210)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(240)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(270)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(300)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+      <g transform="rotate(330)">
+        <path d="M0,-440 Q20,-420 0,-400 Q-20,-420 0,-440"/>
+        <path d="M0,-410 Q15,-395 0,-380 Q-15,-395 0,-410"/>
+      </g>
+    </g>
+  </g>
+  
+  <!-- Middle mandala ring -->
+  <g stroke="black" stroke-width="1.5" fill="none">
+    <circle cx="512" cy="512" r="320"/>
+    <circle cx="512" cy="512" r="300"/>
+    <circle cx="512" cy="512" r="280"/>
+    
+    <!-- Geometric patterns -->
+    <g transform="translate(512,512)">
+      <polygon points="0,-310 30,-280 0,-250 -30,-280"/>
+      <polygon points="310,0 280,30 250,0 280,-30"/>
+      <polygon points="0,310 30,280 0,250 -30,280"/>
+      <polygon points="-310,0 -280,30 -250,0 -280,-30"/>
+      
+      <polygon points="220,-220 240,-200 220,-180 200,-200"/>
+      <polygon points="220,220 240,200 220,180 200,200"/>
+      <polygon points="-220,220 -200,200 -220,180 -240,200"/>
+      <polygon points="-220,-220 -200,-200 -220,-180 -240,-200"/>
+    </g>
+  </g>
+  
+  <!-- Inner mandala ring around child -->
+  <g stroke="black" stroke-width="1" fill="none">
+    <circle cx="512" cy="512" r="200"/>
+    <circle cx="512" cy="512" r="180"/>
+    <circle cx="512" cy="512" r="160"/>
+    
+    <!-- Lotus petals -->
+    <g transform="translate(512,512)">
+      <path d="M0,-190 Q20,-170 0,-150 Q-20,-170 0,-190"/>
+      <path d="M95,-164 Q115,-144 95,-124 Q75,-144 95,-164"/>
+      <path d="M164,-95 Q184,-75 164,-55 Q144,-75 164,-95"/>
+      <path d="M190,0 Q170,20 150,0 Q170,-20 190,0"/>
+      <path d="M164,95 Q184,115 164,135 Q144,115 164,95"/>
+      <path d="M95,164 Q115,184 95,204 Q75,184 95,164"/>
+      <path d="M0,190 Q20,170 0,150 Q-20,170 0,190"/>
+      <path d="M-95,164 Q-75,184 -95,204 Q-115,184 -95,164"/>
+      <path d="M-164,95 Q-144,115 -164,135 Q-184,115 -164,95"/>
+      <path d="M-190,0 Q-170,20 -150,0 Q-170,-20 -190,0"/>
+      <path d="M-164,-95 Q-144,-75 -164,-55 Q-184,-75 -164,-95"/>
+      <path d="M-95,-164 Q-75,-144 -95,-124 Q-115,-144 -95,-164"/>
+    </g>
+  </g>
+  
+  <!-- Intricate center patterns -->
+  <g stroke="black" stroke-width="0.5" fill="none">
+    <circle cx="512" cy="512" r="120"/>
+    <circle cx="512" cy="512" r="100"/>
+    <circle cx="512" cy="512" r="80"/>
+    
+    <!-- Sacred geometry -->
+    <g transform="translate(512,512)">
+      <!-- Flower of life elements -->
+      <circle cx="0" cy="-60" r="30"/>
+      <circle cx="52" cy="-30" r="30"/>
+      <circle cx="52" cy="30" r="30"/>
+      <circle cx="0" cy="60" r="30"/>
+      <circle cx="-52" cy="30" r="30"/>
+      <circle cx="-52" cy="-30" r="30"/>
+    </g>
+  </g>
+</svg>
