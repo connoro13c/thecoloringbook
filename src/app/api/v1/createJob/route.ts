@@ -9,7 +9,8 @@ const CreateJobSchema = z.object({
   sceneDescription: z.string().min(1, 'Scene description is required'),
   style: z.enum(['classic', 'ghibli', 'mandala']),
   difficulty: z.number().min(1).max(5).default(3),
-  isPreview: z.boolean().default(false)
+  isPreview: z.boolean().default(false),
+  testMode: z.boolean().default(false)
 })
 
 export async function POST(request: NextRequest) {
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     
     // For non-preview (full-res) generation, check authentication and credits
-    if (!validatedRequest.isPreview) {
+    // Skip credit checks in test mode
+    if (!validatedRequest.isPreview && !validatedRequest.testMode) {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
       if (authError || !user) {

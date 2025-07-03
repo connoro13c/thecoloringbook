@@ -27,8 +27,8 @@ export class GenerationService {
     const logger = new ProgressiveLogger()
     
     try {
-      // Check if we're in test mode
-      if (isTestMode()) {
+      // Check if we're in test mode (either env var or request flag)
+      if (isTestMode() || (request as any).testMode) {
         return await this.generateTestColoringPage(request, logger)
       }
 

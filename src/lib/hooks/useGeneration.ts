@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { isTestMode } from '@/lib/test-mode'
 import type { ColoringStyle, GenerationRequest, GenerationResponse } from '@/types'
 
 // File to base64 utility
@@ -55,7 +56,8 @@ export function useGeneration({ onGeneratingChange, onSuccess, onError }: UseGen
         sceneDescription: params.sceneDescription,
         style: params.style,
         difficulty: params.difficulty || 3,
-        isPreview: params.isPreview || false
+        isPreview: params.isPreview || false,
+        testMode: isTestMode()
       })
       
       if (response.success && response.data) {

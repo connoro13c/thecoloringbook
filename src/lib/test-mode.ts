@@ -69,8 +69,25 @@ export const getRandomSamplePage = () => {
 // Convert sample image to data URL for consistent interface
 export const getSampleImageAsDataUrl = async (jpgUrl: string): Promise<string> => {
   if (typeof window === 'undefined') {
-    // Server-side: return a placeholder
-    return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k='
+    // Server-side: read from filesystem
+    try {
+      const fs = await import('fs')
+      const path = await import('path')
+      
+      // Convert /test-images/sample.svg to public/test-images/sample.svg
+      const filePath = path.join(process.cwd(), 'public', jpgUrl)
+      const svgContent = fs.readFileSync(filePath, 'utf8')
+      
+      // Convert SVG to data URL
+      const base64Svg = Buffer.from(svgContent).toString('base64')
+      return `data:image/svg+xml;base64,${base64Svg}`
+    } catch (error) {
+      console.error('Failed to load sample image on server:', error)
+      // Return a minimal SVG placeholder
+      const placeholder = '<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg"><rect width="1024" height="1024" fill="white"/><text x="512" y="512" text-anchor="middle" fill="black">Test Mode Coloring Page</text></svg>'
+      const base64Placeholder = Buffer.from(placeholder).toString('base64')
+      return `data:image/svg+xml;base64,${base64Placeholder}`
+    }
   }
   
   try {
