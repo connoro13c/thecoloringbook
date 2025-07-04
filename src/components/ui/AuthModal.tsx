@@ -75,39 +75,55 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
   if (!isOpen) return null
 
   const handleGoogleSignIn = async () => {
+    console.log('🎯 Button clicked, starting auth flow...')
+    
     setIsLoading(true)
     setError(null)
     
-    // Force localhost redirect for development
-    const isLocalhost = window.location.hostname === 'localhost'
-    const redirectUrl = isLocalhost 
-      ? `http://localhost:3000/auth/callback`
-      : `${window.location.origin}/auth/callback`
-    
-    console.log('🚀 Starting Google OAuth with redirect:', redirectUrl)
-    console.log('🔧 Supabase URL:', supabase.supabaseUrl)
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-        scopes: 'openid email profile',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent'
+    try {
+      // Force localhost redirect for development
+      const isLocalhost = window.location.hostname === 'localhost'
+      const redirectUrl = isLocalhost 
+        ? `http://localhost:3000/auth/callback`
+        : `${window.location.origin}/auth/callback`
+      
+      console.log('🚀 Starting Google OAuth with redirect:', redirectUrl)
+      console.log('🔧 Supabase URL:', supabase.supabaseUrl)
+      console.log('🔧 Supabase Key (first 20 chars):', supabase.supabaseKey?.substring(0, 20))
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          scopes: 'openid email profile',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
+        }
+      })
+
+      console.log('🔍 OAuth response:', { data, error })
+
+      if (error) {
+        console.error('❌ OAuth initiation error:', error)
+        setError(`OAuth Error: ${error.message}`)
+        setIsLoading(false)
+      } else {
+        console.log('✅ OAuth initiated successfully, should redirect to Google...')
+        console.log('📍 OAuth URL:', data?.url)
+        
+        // If no URL is returned, that's an issue
+        if (!data?.url) {
+          console.error('❌ No OAuth URL returned from Supabase')
+          setError('No OAuth URL returned - check Supabase configuration')
+          setIsLoading(false)
         }
       }
-    })
-
-    console.log('🔍 OAuth response:', { data, error })
-
-    if (error) {
-      console.error('❌ OAuth initiation error:', error)
-      setError(`OAuth Error: ${error.message}`)
+    } catch (err) {
+      console.error('💥 Unexpected error in handleGoogleSignIn:', err)
+      setError(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`)
       setIsLoading(false)
-    } else {
-      console.log('✅ OAuth initiated successfully, should redirect to Google...')
-      console.log('📍 OAuth URL:', data?.url)
     }
   }
 
