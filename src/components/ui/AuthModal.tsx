@@ -92,13 +92,17 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
       console.log('🔧 Supabase URL:', supabase.supabaseUrl)
       console.log('🔧 Supabase Key (first 20 chars):', supabase.supabaseKey?.substring(0, 20))
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          scopes: 'openid email profile'
-        }
-      })
+      // Manual OAuth URL construction as fallback
+      const manualOAuthUrl = `${supabase.supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`
+      console.log('🔧 Manual OAuth URL:', manualOAuthUrl)
+      
+      // Store the manual URL
+      setOauthUrl(manualOAuthUrl)
+      setError(`Click the link below to continue:`)
+      setIsLoading(false)
+      
+      // Skip the broken Supabase OAuth call for now
+      return
 
       console.log('🔍 OAuth response:', { data, error })
 
