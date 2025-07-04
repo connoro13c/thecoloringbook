@@ -78,12 +78,18 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     setIsLoading(true)
     setError(null)
     
-    console.log('Starting Google OAuth with redirect:', `${window.location.origin}/auth/callback`)
+    // Force localhost redirect for development
+    const isLocalhost = window.location.hostname === 'localhost'
+    const redirectUrl = isLocalhost 
+      ? `http://localhost:3000/auth/callback`
+      : `${window.location.origin}/auth/callback`
+    
+    console.log('Starting Google OAuth with redirect:', redirectUrl)
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectUrl,
         scopes: 'openid email profile',
         queryParams: {
           access_type: 'offline',

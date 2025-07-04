@@ -5,8 +5,16 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
+  const error = searchParams.get('error')
+  const errorDescription = searchParams.get('error_description')
 
-  console.log('Auth callback received:', { code: !!code, origin, searchParams: Object.fromEntries(searchParams) })
+  console.log('Auth callback received:', { 
+    code: !!code, 
+    origin, 
+    error,
+    errorDescription,
+    searchParams: Object.fromEntries(searchParams) 
+  })
 
   let authError: { message?: string } | null = null;
   
@@ -48,5 +56,19 @@ export async function GET(request: NextRequest) {
 
   // Return the user to an error page with instructions
   console.log('Auth callback failed - no code or exchange failed', { hasCode: !!code, error: authError?.message || null })
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  
+  // Pass OAuth errors to the error page
+  const errorParams = new URLSearchParams()
+  if (error) {
+    errorParams.set('error', error)
+    if (errorDescription) {
+      errorParams.set('error_description', errorDescription)
+    }
+  } else if (authError?.message) {
+    errorParams.set('error', 'exchange_failed')
+    errorParams.set('error_description', authError.message)
+  }
+  
+  const errorQuery = errorParams.toString() ? `?${errorParams.toString()}` : ''
+  return NextResponse.redirect(`${origin}/auth/auth-code-error${errorQuery}`)
 }
