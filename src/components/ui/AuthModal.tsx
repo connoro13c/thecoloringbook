@@ -120,6 +120,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           setError('No OAuth URL returned - check Supabase configuration')
           setIsLoading(false)
         } else {
+          // Store OAuth URL for manual access
+          setOauthUrl(data.url)
+          
           // Force redirect to OAuth URL
           console.log('🚀 Forcing redirect to:')
           console.log(data.url)
@@ -132,7 +135,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
             } catch (e) {
               console.log('Fallback: Manual navigation required')
               console.log('COPY THIS URL:', data.url)
-              setError(`Redirect blocked. Check console for OAuth URL to copy manually.`)
+              setError(`Redirect blocked. Click the link below to continue manually.`)
               setIsLoading(false)
             }
           }, 100)
@@ -211,6 +214,15 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{error}</p>
+              {oauthUrl && (
+                <a 
+                  href={oauthUrl}
+                  className="block mt-2 text-sm text-blue-600 hover:text-blue-800 underline break-all"
+                  target="_self"
+                >
+                  Continue with Google OAuth →
+                </a>
+              )}
             </div>
           )}
 
