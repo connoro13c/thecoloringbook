@@ -118,6 +118,10 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           console.error('❌ No OAuth URL returned from Supabase')
           setError('No OAuth URL returned - check Supabase configuration')
           setIsLoading(false)
+        } else {
+          // Force redirect to OAuth URL
+          console.log('🚀 Forcing redirect to:', data.url)
+          window.location.href = data.url
         }
       }
     } catch (err) {
@@ -199,7 +203,10 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           {/* Action Buttons */}
           <div className="space-y-3">
             <Button
-              onClick={handleGoogleSignIn}
+              onClick={() => {
+                console.log('🔥 BUTTON CLICKED - THIS SHOULD APPEAR IN CONSOLE!')
+                handleGoogleSignIn()
+              }}
               disabled={isLoading || isAssociating}
               className="w-full bg-primary-indigo hover:bg-primary-indigo/90 text-white font-medium py-3"
             >
