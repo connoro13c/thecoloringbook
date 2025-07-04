@@ -96,11 +96,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          scopes: 'openid email profile',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
+          scopes: 'openid email profile'
         }
       })
 
@@ -122,23 +118,11 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
         } else {
           // Store OAuth URL for manual access
           setOauthUrl(data.url)
+          setError(`Click the link below to continue:`)
+          setIsLoading(false)
           
-          // Force redirect to OAuth URL
-          console.log('🚀 Forcing redirect to:')
-          console.log(data.url)
-          
-          // Safari incognito sometimes blocks window.location.href
-          // Use location.replace as fallback
-          setTimeout(() => {
-            try {
-              window.location.replace(data.url)
-            } catch (e) {
-              console.log('Fallback: Manual navigation required')
-              console.log('COPY THIS URL:', data.url)
-              setError(`Redirect blocked. Click the link below to continue manually.`)
-              setIsLoading(false)
-            }
-          }, 100)
+          // Don't try automatic redirect in Safari incognito
+          console.log('🚀 OAuth URL generated, showing manual link')
         }
       }
     } catch (err) {
