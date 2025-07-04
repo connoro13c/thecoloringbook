@@ -15,6 +15,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAssociating, setIsAssociating] = useState(false)
+  const [oauthUrl, setOauthUrl] = useState<string | null>(null)
   // Use singleton supabase client
 
   // Listen for auth state changes
@@ -120,8 +121,21 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           setIsLoading(false)
         } else {
           // Force redirect to OAuth URL
-          console.log('🚀 Forcing redirect to:', data.url)
-          window.location.href = data.url
+          console.log('🚀 Forcing redirect to:')
+          console.log(data.url)
+          
+          // Safari incognito sometimes blocks window.location.href
+          // Use location.replace as fallback
+          setTimeout(() => {
+            try {
+              window.location.replace(data.url)
+            } catch (e) {
+              console.log('Fallback: Manual navigation required')
+              console.log('COPY THIS URL:', data.url)
+              setError(`Redirect blocked. Check console for OAuth URL to copy manually.`)
+              setIsLoading(false)
+            }
+          }, 100)
         }
       }
     } catch (err) {
