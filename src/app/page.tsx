@@ -8,13 +8,13 @@ import { PhotoUpload } from '@/components/forms/PhotoUpload'
 import { Button } from '@/components/ui/button'
 import { CreditBadge } from '@/components/ui/CreditBadge'
 import { Paywall } from '@/components/ui/Paywall'
-import { AuthModal } from '@/components/ui/AuthModal'
+import AuthDialog from '@/components/auth/AuthDialog'
 import { DonationModal } from '@/components/forms/DonationModal'
-import { TestModeToggle } from '@/components/ui/TestModeToggle'
+
 import { useGenerationState } from '@/lib/hooks/useGenerationState'
 import { useGeneration } from '@/lib/hooks/useGeneration'
 import { useCredits } from '@/lib/hooks/useCredits'
-import { useAnonymousFiles } from '@/lib/hooks/useAnonymousFiles'
+
 import { supabase } from '@/lib/supabase/client'
 
 // Lazy load components that are conditionally rendered
@@ -29,11 +29,10 @@ const StyleSelection = dynamic(() => import('@/components/forms/StyleSelection')
 export default function Home() {
   const { state, actions } = useGenerationState()
   const { } = useCredits() // Keep for potential future use
-  const { saveAnonymousFile, getLatestAnonymousFile, clearAnonymousFiles } = useAnonymousFiles()
+
   const [showPaywall, setShowPaywall] = useState(false)
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  const [pendingFilePath, setPendingFilePath] = useState<string | null>(null)
+
   const [showDonationModal, setShowDonationModal] = useState(false)
   const [currentPageId, setCurrentPageId] = useState<string | null>(null)
   // Use singleton supabase client
@@ -48,18 +47,7 @@ export default function Home() {
         setCurrentPageId(response.data.pageId)
       }
       
-      // For anonymous previews, save file path to localStorage
-      if (response?.data?.imagePath && response.data.imagePath.startsWith('public/')) {
-        saveAnonymousFile(
-          response.data.imagePath,
-          imageUrl,
-          {
-            sceneDescription: state.sceneDescription,
-            style: state.selectedStyle || undefined,
-            difficulty: 3
-          }
-        )
-      }
+      // Anonymous previews are automatically saved to database with pageId
     },
     onError: actions.setError
   })
@@ -87,7 +75,7 @@ export default function Home() {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      setShowAuthModal(true)
+      // User will be prompted through donation flow
       return
     }
 
@@ -101,22 +89,9 @@ export default function Home() {
 
 
 
-  // Handle "Save this page" for anonymous users
-  const handleSaveThisPage = () => {
-    const latestFile = getLatestAnonymousFile()
-    if (latestFile) {
-      setPendingFilePath(latestFile.filePath)
-      setShowAuthModal(true)
-    }
-  }
 
-  // Handle successful auth with file association
-  const handleAuthSuccess = () => {
-    // Clear anonymous files from localStorage since they're now saved to user account
-    clearAnonymousFiles()
-    setPendingFilePath(null)
-    console.log('✅ Anonymous files cleared after successful auth')
-  }
+
+
 
   // Handle auth and payment redirects
   useEffect(() => {
@@ -309,47 +284,49 @@ export default function Home() {
                 
                 <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8">
                   {/* Save this page - for anonymous users */}
-                  <div
-                    onClick={handleSaveThisPage}
-                    className="
-                      relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
-                      bg-gradient-to-br from-purple-100 via-pink-50 to-rose-50
-                      border-2 border-purple-200/60 shadow-md hover:shadow-lg
-                      hover:border-primary-indigo ring-1 ring-primary-indigo/10
-                    "
-                  >
-                    <div className="text-center">
-                      <div className="mb-4 flex justify-center text-purple-700">
-                        <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path 
-                            d="M12 36V12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v24" 
-                            stroke="currentColor" 
-                            strokeWidth="2.5" 
-                            strokeLinecap="round"
-                          />
-                          <path 
-                            d="M32 36H8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" 
-                            stroke="currentColor" 
-                            strokeWidth="2.5" 
-                            strokeLinecap="round"
-                            fill="none"
-                          />
-                          <path 
-                            d="M40 36h-8M16 24h8M16 28h12" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round"
-                          />
-                        </svg>
+                  <AuthDialog
+                    pageId={currentPageId || undefined}
+                    trigger={
+                      <div className="
+                        relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                        bg-gradient-to-br from-purple-100 via-pink-50 to-rose-50
+                        border-2 border-purple-200/60 shadow-md hover:shadow-lg
+                        hover:border-primary-indigo ring-1 ring-primary-indigo/10
+                      ">
+                        <div className="text-center">
+                          <div className="mb-4 flex justify-center text-purple-700">
+                            <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path 
+                                d="M12 36V12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v24" 
+                                stroke="currentColor" 
+                                strokeWidth="2.5" 
+                                strokeLinecap="round"
+                              />
+                              <path 
+                                d="M32 36H8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" 
+                                stroke="currentColor" 
+                                strokeWidth="2.5" 
+                                strokeLinecap="round"
+                                fill="none"
+                              />
+                              <path 
+                                d="M40 36h-8M16 24h8M16 28h12" 
+                                stroke="currentColor" 
+                                strokeWidth="2" 
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </div>
+                          <h3 className="font-playfair text-lg font-bold text-purple-800 mb-2">
+                            Save this page
+                          </h3>
+                          <p className="text-sm text-purple-700/80">
+                            Create account to save & download
+                          </p>
+                        </div>
                       </div>
-                      <h3 className="font-playfair text-lg font-bold text-purple-800 mb-2">
-                        Save this page
-                      </h3>
-                      <p className="text-sm text-purple-700/80">
-                        Create account to save & download
-                      </p>
-                    </div>
-                  </div>
+                    }
+                  />
 
                   {/* Donate for high-res download */}
                   <div
@@ -449,13 +426,7 @@ export default function Home() {
         onClose={() => setShowPaywall(false)}
       />
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onAuthSuccess={handleAuthSuccess}
-        pendingFilePath={pendingFilePath || undefined}
-      />
+
 
       {/* Donation Modal */}
       {currentPageId && (
@@ -470,8 +441,7 @@ export default function Home() {
         />
       )}
 
-      {/* Test Mode Toggle - development only */}
-      <TestModeToggle />
+
     </main>
   )
 }

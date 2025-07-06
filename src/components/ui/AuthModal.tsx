@@ -82,52 +82,21 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     setError(null)
     
     try {
-      // Force localhost redirect for development
-      const isLocalhost = window.location.hostname === 'localhost'
-      const redirectUrl = isLocalhost 
-        ? `http://localhost:3000/auth/callback`
-        : `${window.location.origin}/auth/callback`
-      
-      console.log('🚀 Starting Google OAuth with redirect:', redirectUrl)
-      console.log('🔧 Supabase URL:', supabase.supabaseUrl)
-      console.log('🔧 Supabase Key (first 20 chars):', supabase.supabaseKey?.substring(0, 20))
-      
-      // Manual OAuth URL construction as fallback
-      const manualOAuthUrl = `${supabase.supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`
-      console.log('🔧 Manual OAuth URL:', manualOAuthUrl)
-      
-      // Store the manual URL
-      setOauthUrl(manualOAuthUrl)
-      setError(`Click the link below to continue:`)
-      setIsLoading(false)
-      
-      // Skip the broken Supabase OAuth call for now
-      return
-
-      console.log('🔍 OAuth response:', { data, error })
+      // Use magic link instead for testing
+      const { error } = await supabase.auth.signInWithOtp({
+        email: 'test@example.com',
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
 
       if (error) {
-        console.error('❌ OAuth initiation error:', error)
-        setError(`OAuth Error: ${error.message}`)
+        console.error('❌ Magic link error:', error)
+        setError(`Magic link error: ${error.message}`)
         setIsLoading(false)
       } else {
-        console.log('✅ OAuth initiated successfully, should redirect to Google...')
-        console.log('📍 OAuth URL:', data?.url)
-        
-        // If no URL is returned, that's an issue
-        if (!data?.url) {
-          console.error('❌ No OAuth URL returned from Supabase')
-          setError('No OAuth URL returned - check Supabase configuration')
-          setIsLoading(false)
-        } else {
-          // Store OAuth URL for manual access
-          setOauthUrl(data.url)
-          setError(`Click the link below to continue:`)
-          setIsLoading(false)
-          
-          // Don't try automatic redirect in Safari incognito
-          console.log('🚀 OAuth URL generated, showing manual link')
-        }
+        setError('Check your email for the magic link!')
+        setIsLoading(false)
       }
     } catch (err) {
       console.error('💥 Unexpected error in handleGoogleSignIn:', err)

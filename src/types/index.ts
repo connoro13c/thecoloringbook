@@ -30,7 +30,7 @@ export interface GenerationRequest {
   style: ColoringStyle
   difficulty: number
   isPreview?: boolean
-  testMode?: boolean
+
 }
 
 export interface GenerationResponse {

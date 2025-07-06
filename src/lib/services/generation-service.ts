@@ -6,7 +6,7 @@ import { createPage } from '@/lib/database'
 import { createClient } from '@/lib/supabase/server'
 import { ProgressiveLogger } from '@/lib/ai/progressive-logger'
 import { createVisionMetrics, createImageMetrics } from '@/lib/ai/compact-logger'
-import { isTestMode, getMockPhotoAnalysis, getRandomSamplePage, getSampleImageAsDataUrl } from '@/lib/test-mode'
+
 import type { 
   GenerationRequest, 
   GenerationResponse, 
@@ -27,11 +27,6 @@ export class GenerationService {
     const logger = new ProgressiveLogger()
     
     try {
-      // Check if we're in test mode (either env var or request flag)
-      if (isTestMode() || (request as any).testMode) {
-        return await this.generateTestColoringPage(request, logger)
-      }
-
       // Extract base64 data from data URL
       const base64Data = request.photo.replace(/^data:image\/[a-z]+;base64,/, '')
       
@@ -100,70 +95,7 @@ export class GenerationService {
     }
   }
 
-  /**
-   * Test mode version that uses sample data and skips AI generation
-   */
-  private static async generateTestColoringPage(request: GenerationRequest, logger: ProgressiveLogger): Promise<GenerationResponse> {
-    logger.startJob({
-      style: request.style,
-      difficulty: request.difficulty,
-      scene: request.sceneDescription,
-      photoSize: 1000,
-      testMode: true
-    })
 
-    // Use mock photo analysis
-    const photoAnalysis = getMockPhotoAnalysis()
-    logger.updateVisionProgress('Using mock photo analysis (test mode)')
-
-    // Get a sample coloring page based on style
-    const samplePage = getRandomSamplePage()
-    logger.updateImageProgress('Using sample coloring page (test mode)')
-
-    // Convert SVG to data URL for consistent interface
-    const imageDataUrl = await getSampleImageAsDataUrl(samplePage.jpgUrl)
-    
-    // Store the test image
-    const storageResult = await this.storeImage(imageDataUrl, logger)
-    
-    // Build mock prompt
-    const dallePrompt = `Test mode: ${request.sceneDescription} in ${request.style} style`
-    
-    // Save to database
-    const pageRecord = await this.saveToDatabase({
-      prompt: dallePrompt,
-      style: request.style,
-      difficulty: request.difficulty,
-      jpgPath: storageResult.path,
-      analysisOutput: photoAnalysis
-    }, logger)
-
-    // Add mock data to logger
-    this.addVisionDataToLogger(logger, photoAnalysis)
-    this.addImageDataToLogger(logger, { tokens: { prompt: 100 } }, dallePrompt)
-    this.addStorageDataToLogger(logger, storageResult, pageRecord)
-
-    logger.completeJob()
-
-    return {
-      success: true,
-      data: {
-        pageId: pageRecord.id,
-        imageUrl: storageResult.publicUrl,
-        imagePath: storageResult.path,
-        analysis: photoAnalysis,
-        prompt: dallePrompt,
-        revisedPrompt: `Test mode: Generated ${samplePage.style} coloring page`,
-        metadata: {
-          style: request.style,
-          difficulty: request.difficulty,
-          sceneDescription: request.sceneDescription,
-          generatedAt: new Date().toISOString(),
-          testMode: true
-        }
-      }
-    }
-  }
 
   /**
    * Step 1: Analyze photo with GPT-4o Vision
