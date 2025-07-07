@@ -24,8 +24,8 @@ export async function generateColoringPage(prompt: string, logger?: CompactLogge
       model: OPENAI_MODELS.ImageGen,
       prompt: prompt,
       n: 1,
-      size: '1024x1024'
-      // gpt-image-1 returns base64 by default, no response_format parameter needed
+      size: '1024x1024',
+      response_format: 'b64_json'
     })
 
     if (logger && 'updateImageProgress' in logger) {
