@@ -1,9 +1,26 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+
+interface UrlInfo {
+  fullUrl: string
+  pathname: string
+  search: string
+  hash: string
+  searchParams: Record<string, string>
+  hashParams: Record<string, string>
+}
 
 export default function DebugAuth() {
-  const [urlInfo, setUrlInfo] = useState<any>({})
+  const [urlInfo, setUrlInfo] = useState<UrlInfo>({
+    fullUrl: '',
+    pathname: '',
+    search: '',
+    hash: '',
+    searchParams: {},
+    hashParams: {}
+  })
 
   useEffect(() => {
     setUrlInfo({
@@ -24,7 +41,7 @@ export default function DebugAuth() {
           {JSON.stringify(urlInfo, null, 2)}
         </pre>
         <div className="mt-4">
-          <a href="/" className="text-blue-600 hover:underline">← Back to Home</a>
+          <Link href="/" className="text-blue-600 hover:underline">← Back to Home</Link>
         </div>
       </div>
     </div>
