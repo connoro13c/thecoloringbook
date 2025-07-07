@@ -11,6 +11,7 @@ function LoginContent() {
   useEffect(() => {
     // Handle magic link authentication from URL fragment
     const handleAuthCallback = async () => {
+      // First, try to get existing session
       const { data } = await supabase.auth.getSession()
       
       if (data.session) {
@@ -21,16 +22,48 @@ function LoginContent() {
         return
       }
       
-      // Check if there's an error
+      // Check if there are auth tokens in the URL fragment (magic link)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      
+      if (accessToken && refreshToken) {
+        try {
+          // Set the session using the tokens from the URL fragment
+          const { data: sessionData, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          })
+          
+          if (error) {
+            console.error('Error setting session from magic link:', error)
+            router.replace('/?auth_error=session_failed')
+            return
+          }
+          
+          if (sessionData.session) {
+            // Success! Redirect to success page
+            const pageId = searchParams.get('page')
+            const successUrl = pageId ? `/auth/success?page=${pageId}` : '/auth/success'
+            router.replace(successUrl)
+            return
+          }
+        } catch (error) {
+          console.error('Magic link processing error:', error)
+          router.replace('/?auth_error=magic_link_failed')
+          return
+        }
+      }
+      
+      // Check if there's a specific error in the URL
       const authError = searchParams.get('error')
       if (authError) {
         console.error('Auth error:', authError)
-        // Redirect back to main page with error
         router.replace('/?auth_error=' + authError)
         return
       }
       
-      // No session and no specific error, redirect to main page
+      // No session, no tokens, no error - redirect to main page
       router.replace('/')
     }
 
