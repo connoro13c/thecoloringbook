@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
 const createTestPageSchema = z.object({
@@ -10,6 +10,7 @@ const createTestPageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { prompt, style, difficulty } = createTestPageSchema.parse(await request.json())
 
     // Get current user

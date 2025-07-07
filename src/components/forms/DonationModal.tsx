@@ -118,7 +118,7 @@ export function DonationModal({
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Your donation helps us create more magical coloring pages for children. 
-            You'll receive both PDF and PNG high-resolution files, plus a tax-deductible receipt.
+            You&apos;ll receive both PDF and PNG high-resolution files, plus a tax-deductible receipt.
           </p>
 
           <div className="space-y-3">
@@ -167,7 +167,7 @@ export function DonationModal({
             <div className="flex items-start gap-3">
               <Download className="h-5 w-5 text-blue-600 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-900">What you'll get:</p>
+                <p className="font-medium text-blue-900">What you&apos;ll get:</p>
                 <ul className="text-blue-700 mt-1 space-y-1">
                   <li>• High-resolution PDF (perfect for printing)</li>
                   <li>• High-resolution PNG (great for digital use)</li>

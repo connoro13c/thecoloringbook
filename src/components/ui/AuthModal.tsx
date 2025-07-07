@@ -15,7 +15,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAssociating, setIsAssociating] = useState(false)
-  const [oauthUrl, setOauthUrl] = useState<string | null>(null)
+
   // Use singleton supabase client
 
   // Listen for auth state changes
@@ -171,15 +171,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
           {error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{error}</p>
-              {oauthUrl && (
-                <a 
-                  href={oauthUrl}
-                  className="block mt-2 text-sm text-blue-600 hover:text-blue-800 underline break-all"
-                  target="_self"
-                >
-                  Continue with Google OAuth →
-                </a>
-              )}
+
             </div>
           )}
 

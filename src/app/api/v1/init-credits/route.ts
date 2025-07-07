@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
+    const supabase = await createClient()
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create initial credits record (5 free credits)
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('user_credits')
       .insert({
         user_id: user.id,

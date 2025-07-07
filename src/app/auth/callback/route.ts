@@ -5,9 +5,12 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient()
 
   // Exchange the OAuth code for a session and set cookies
-  const { error } = await supabase.auth.exchangeCodeForSession(
-    req.nextUrl.searchParams
-  )
+  const code = req.nextUrl.searchParams.get('code')
+  if (!code) {
+    return NextResponse.redirect(new URL('/login?error=no_code', req.url))
+  }
+  
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
   
   if (error) {
     console.error('Auth callback error:', error)

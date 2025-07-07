@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -45,13 +46,13 @@ export default async function DashboardPage() {
 
         {pages && pages.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {pages.map((page: any) => (
+            {pages.map((page: { id: string; prompt: string; style: string; created_at: string; jpg_path: string | null }) => (
               <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4">
                 <div className="aspect-square bg-gray-100 rounded-xl mb-4">
                   {page.jpg_path && (
                     <img
                       src={page.jpg_path}
-                      alt="Coloring page"
+                      alt={`Coloring page: ${page.prompt}`}
                       className="w-full h-full object-cover rounded-xl"
                     />
                   )}
@@ -71,12 +72,12 @@ export default async function DashboardPage() {
             <p className="text-gray-600 mb-6">
               Create your first coloring page to get started!
             </p>
-            <a
+            <Link
               href="/"
               className="inline-block bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
             >
               Create Your First Page
-            </a>
+            </Link>
           </div>
         )}
       </div>

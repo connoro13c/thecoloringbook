@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Download, FileText, Image, Receipt, ArrowRight } from 'lucide-react';
+import { CheckCircle, FileText, Image, Receipt, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 interface DownloadData {
@@ -141,7 +141,7 @@ export function SuccessPageContent() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
-            What's Next?
+            What&apos;s Next?
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -153,7 +153,7 @@ export function SuccessPageContent() {
               <div>
                 <p className="font-medium">Check your email</p>
                 <p className="text-sm text-muted-foreground">
-                  You'll receive a tax-deductible donation receipt and Stripe payment confirmation
+                  You&apos;ll receive a tax-deductible donation receipt and Stripe payment confirmation
                 </p>
               </div>
             </div>

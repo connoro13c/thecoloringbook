@@ -1,11 +1,12 @@
 import { claimPage } from '@/app/actions/claimPage'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
 export default async function AuthSuccessPage({
   searchParams,
 }: {
-  searchParams: { page?: string }
+  searchParams: Promise<{ page?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,10 +15,11 @@ export default async function AuthSuccessPage({
     redirect('/login')
   }
 
+  const resolvedSearchParams = await searchParams
   // If there's a page to claim, claim it
-  if (searchParams.page) {
+  if (resolvedSearchParams.page) {
     try {
-      await claimPage(searchParams.page)
+      await claimPage(resolvedSearchParams.page)
     } catch (error) {
       console.error('Error claiming page:', error)
       // Continue anyway - user is still authenticated
@@ -30,24 +32,24 @@ export default async function AuthSuccessPage({
         <div className="text-6xl">🎉</div>
         <h1 className="text-3xl font-bold text-gray-900">Welcome!</h1>
         <p className="text-gray-600">
-          {searchParams.page 
+          {resolvedSearchParams.page 
             ? "Your coloring page has been saved to your account!"
             : "You're now signed in and ready to create coloring pages!"
           }
         </p>
         <div className="space-y-3">
-          <a
+          <Link
             href="/dashboard"
             className="block w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
           >
             Go to Dashboard
-          </a>
-          <a
+          </Link>
+          <Link
             href="/"
             className="block w-full text-indigo-600 hover:text-indigo-700 transition-colors"
           >
             Create Another Page
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AuthModal } from '@/components/ui/AuthModal'
@@ -12,7 +12,19 @@ export default function TestPage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showDonationModal, setShowDonationModal] = useState(false)
   const [testPageId, setTestPageId] = useState<string | null>(null)
-  const { credits, user, isLoading } = useCredits()
+  const { credits } = useCredits()
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [userLoading, setUserLoading] = useState(true)
+
+  // Get initial user state
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+      setUserLoading(false)
+    }
+    getUser()
+  }, [])
 
   // Create a test page ID for payment flow
   const createTestPage = async () => {
@@ -68,7 +80,7 @@ export default function TestPage() {
             <CardTitle>Current Status</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {userLoading ? (
               <p>Loading...</p>
             ) : user ? (
               <div className="space-y-2">
@@ -143,7 +155,7 @@ export default function TestPage() {
             <div>
               <h4 className="font-medium mb-2">Authentication Flow:</h4>
               <ol className="list-decimal list-inside space-y-1 text-sm text-neutral-slate/80">
-                <li>Click "Test Auth Flow" button</li>
+                <li>Click &quot;Test Auth Flow&quot; button</li>
                 <li>Complete Google OAuth in popup</li>
                 <li>Verify user status updates</li>
                 <li>Check credit balance (should be 5 for new users)</li>
@@ -154,7 +166,7 @@ export default function TestPage() {
               <h4 className="font-medium mb-2">Payment Flow:</h4>
               <ol className="list-decimal list-inside space-y-1 text-sm text-neutral-slate/80">
                 <li>Must be signed in first</li>
-                <li>Click "Test Payment Flow" button</li>
+                <li>Click &quot;Test Payment Flow&quot; button</li>
                 <li>Choose donation amount in modal</li>
                 <li>Complete Stripe checkout</li>
                 <li>Verify credit balance increases</li>
