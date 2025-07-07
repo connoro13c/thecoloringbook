@@ -41,9 +41,8 @@ export function createServiceClient() {
     throw new Error('Missing Supabase URL or service role key')
   }
   
-  // Validate that the service role key belongs to the same project
-  const projectRef = supabaseUrl.split('//')[1]?.split('.')[0]
-  if (projectRef && !serviceRoleKey.includes('service_role')) {
+  // Basic validation that we have a properly formatted key
+  if (!serviceRoleKey.startsWith('eyJ')) {
     throw new Error('Invalid service role key format')
   }
   
