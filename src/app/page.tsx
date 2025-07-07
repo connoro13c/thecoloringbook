@@ -93,6 +93,21 @@ export default function Home() {
 
 
 
+  // Debug magic link URLs
+  useEffect(() => {
+    // Log full URL info for debugging magic links
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      console.log('🔍 MAGIC LINK DEBUG:', {
+        fullUrl: window.location.href,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+        hashParams: Object.fromEntries(new URLSearchParams(window.location.hash.substring(1)))
+      })
+      alert('Magic link detected! Check console for debug info')
+    }
+  }, [])
+
   // Handle auth and payment redirects
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
