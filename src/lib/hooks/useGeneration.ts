@@ -2,11 +2,46 @@ import { useCallback } from 'react'
 
 import type { ColoringStyle, GenerationRequest, GenerationResponse } from '@/types'
 
-// File to base64 utility
+// File to base64 utility with automatic resizing
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')!
+      
+      // Resize to max 1024px on the longest side for Vision API
+      const maxSize = 1024
+      let { width, height } = img
+      
+      if (width > height) {
+        if (width > maxSize) {
+          height = (height * maxSize) / width
+          width = maxSize
+        }
+      } else {
+        if (height > maxSize) {
+          width = (width * maxSize) / height
+          height = maxSize
+        }
+      }
+      
+      canvas.width = width
+      canvas.height = height
+      
+      // Draw resized image
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      // Convert to base64 with quality compression
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+      resolve(dataUrl)
+    }
+    
+    img.onerror = reject
+    
+    // Create blob URL to load the image
     const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
+    reader.onload = () => img.src = reader.result as string
     reader.onerror = reject
     reader.readAsDataURL(file)
   })

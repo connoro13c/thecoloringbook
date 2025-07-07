@@ -32,11 +32,38 @@ export interface PhotoAnalysisResult extends PhotoAnalysis {
 
 export async function analyzePhoto(imageBase64: string, logger?: CompactLogger | TieredLogger | ProgressiveLogger): Promise<PhotoAnalysisResult> {
   try {
+    // Validate base64 data
+    if (!imageBase64 || imageBase64.length < 100) {
+      throw new Error(`Invalid base64 data: length ${imageBase64.length}`)
+    }
+    
+    // Check if it looks like valid base64
+    const base64Regex = /^[A-Za-z0-9+/]+=*$/
+    if (!base64Regex.test(imageBase64)) {
+      throw new Error('Invalid base64 format')
+    }
+    
+    // Check size - OpenAI Vision has limits
+    const sizeInMB = (imageBase64.length * 3 / 4) / (1024 * 1024) // Rough base64 to bytes conversion
+    if (sizeInMB > 20) {
+      throw new Error(`Image too large (${sizeInMB.toFixed(1)}MB). Please use an image under 20MB.`)
+    }
+    
+    console.log('🔍 Photo analysis starting with base64 length:', imageBase64.length)
+    console.log('🤖 Using Vision model:', OPENAI_MODELS.VISION)
+    
     // Update progress if using ProgressiveLogger
     if (logger && 'updateVisionProgress' in logger) {
       logger.updateVisionProgress('Uploading image to OpenAI');
     }
     
+    // Add timeout to the OpenAI request
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ Photo analysis timeout after 70 seconds')
+      controller.abort()
+    }, 70000)
+
     const response = await openai.chat.completions.create({
       model: OPENAI_MODELS.VISION,
       messages: [
@@ -87,7 +114,7 @@ Provide only the JSON object, no other text.`
               type: 'image_url',
               image_url: {
                 url: `data:image/jpeg;base64,${imageBase64}`,
-                detail: 'high'
+                detail: 'low'
               }
             }
           ]
@@ -95,7 +122,11 @@ Provide only the JSON object, no other text.`
       ],
       max_tokens: 1000,
       temperature: 0.3,
+    }, {
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (logger && 'updateVisionProgress' in logger) {
       logger.updateVisionProgress('Analyzing image content');
@@ -185,6 +216,11 @@ Provide only the JSON object, no other text.`
       message: errorObj?.message,
       stack: errorObj?.stack
     })
+    
+    // Handle specific timeout error
+    if (errorObj?.name === 'AbortError') {
+      throw new Error('Photo analysis timed out. Please try with a smaller image or try again.')
+    }
     
     // If it's an API error, log more details
     if (errorObj?.status) {

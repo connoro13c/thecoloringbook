@@ -27,8 +27,18 @@ export class GenerationService {
     const logger = new ProgressiveLogger()
     
     try {
+      console.log('🚀 Starting generation with request:', {
+        style: request.style,
+        difficulty: request.difficulty,
+        sceneLength: request.sceneDescription.length,
+        photoLength: request.photo.length,
+        isPreview: request.isPreview
+      })
       // Extract base64 data from data URL
       const base64Data = request.photo.replace(/^data:image\/[a-z]+;base64,/, '')
+      console.log('📷 Photo data - Original length:', request.photo.length)
+      console.log('📷 Photo data - Base64 length:', base64Data.length)
+      console.log('📷 Photo data - Starts with:', request.photo.substring(0, 50))
       
       // Start job logging
       logger.startJob({
@@ -39,7 +49,9 @@ export class GenerationService {
       })
 
       // Step 1: Analyze the photo
+      console.log('📸 Starting photo analysis...')
       const photoAnalysis = await this.analyzePhoto(base64Data, logger)
+      console.log('✅ Photo analysis complete:', photoAnalysis.child.age)
       
       // Step 2: Build the prompt
       const dallePrompt = this.buildPrompt({
@@ -50,7 +62,9 @@ export class GenerationService {
       })
 
       // Step 3: Generate image
+      console.log('🎨 Starting image generation with prompt length:', dallePrompt.length)
       const generationResult = await this.generateImage(dallePrompt, logger)
+      console.log('✅ Image generation complete')
       
       // Step 4: Store image
       const storageResult = await this.storeImage(generationResult.imageUrl, logger)
@@ -90,8 +104,9 @@ export class GenerationService {
       }
       
     } catch (error) {
+      console.error('🚨 FULL ERROR STACK:', error)
       logger.logError('Generation failed', error)
-      return this.handleError(error)
+      throw error // Re-throw to see actual error in API route
     }
   }
 

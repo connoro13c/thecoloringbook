@@ -88,11 +88,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Log the actual error for debugging
+    console.error('❌ Full error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error
+    })
+
     // Handle unexpected errors
     return NextResponse.json(
       { 
         success: false, 
-        error: 'An unexpected error occurred' 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       },
       { status: 500 }
     )
