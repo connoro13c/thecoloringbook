@@ -11,7 +11,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Handle magic link authentication from URL fragment
     const handleAuthCallback = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      const { data } = await supabase.auth.getSession()
       
       if (data.session) {
         // User is authenticated, redirect to success
