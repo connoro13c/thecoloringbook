@@ -47,6 +47,12 @@ npm run lint:fix
 # Storybook
 npm run storybook
 
+# Git Workflow
+# Custom git aliases for quick commits and deploys
+git git                 # Auto-stage, commit with generated message, and push
+git save                # Quick save with "Save progress" message
+git quick "message"     # Quick commit with custom message
+
 # Troubleshooting
 # Clear Next.js cache if white screen or module errors
 rm -rf .next && npm run dev

@@ -24,8 +24,7 @@ export async function generateColoringPage(prompt: string, logger?: CompactLogge
       model: OPENAI_MODELS.ImageGen,
       prompt: prompt,
       n: 1,
-      size: '1024x1024',
-      response_format: 'b64_json'
+      size: '1024x1024'
     })
 
     if (logger && 'updateImageProgress' in logger) {
