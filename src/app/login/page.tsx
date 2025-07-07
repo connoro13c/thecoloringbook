@@ -9,8 +9,13 @@ function LoginContent() {
   const searchParams = useSearchParams()
   
   useEffect(() => {
+    let hasRun = false
+    
     // Handle magic link authentication from URL fragment
     const handleAuthCallback = async () => {
+      if (hasRun) return
+      hasRun = true
+      
       // First, try to get existing session
       const { data } = await supabase.auth.getSession()
       
@@ -68,7 +73,7 @@ function LoginContent() {
     }
 
     handleAuthCallback()
-  }, [router, searchParams])
+  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
