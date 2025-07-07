@@ -30,7 +30,7 @@ export function AuthTester() {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [])
 
   const signInWithGoogle = async () => {
     setLoading(true)

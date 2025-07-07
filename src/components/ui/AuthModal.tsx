@@ -71,7 +71,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     )
 
     return () => subscription.unsubscribe()
-  }, [isOpen, supabase.auth, pendingFilePath, onAuthSuccess, onClose])
+  }, [isOpen, pendingFilePath, onAuthSuccess, onClose])
 
   if (!isOpen) return null
 

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -48,12 +49,15 @@ export default async function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pages.map((page: { id: string; prompt: string; style: string; created_at: string; jpg_path: string | null }) => (
               <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4">
-                <div className="aspect-square bg-gray-100 rounded-xl mb-4">
+                <div className="relative aspect-square bg-gray-100 rounded-xl mb-4 overflow-hidden">
                   {page.jpg_path && (
-                    <img
+                    <Image
                       src={page.jpg_path}
                       alt={`Coloring page: ${page.prompt}`}
-                      className="w-full h-full object-cover rounded-xl"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                      className="object-cover rounded-xl"
+                      unoptimized
                     />
                   )}
                 </div>

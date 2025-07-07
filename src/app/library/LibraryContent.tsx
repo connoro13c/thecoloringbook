@@ -167,7 +167,8 @@ export function LibraryContent() {
                   onClick={() => handleDownload(download, 'png')}
                   className="flex items-center gap-2"
                 >
-                  <Image className="h-4 w-4" />
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                   <Image className="h-4 w-4" />
                   PNG
                 </Button>
               </div>

@@ -119,7 +119,8 @@ export function SuccessPageContent() {
                 onClick={() => downloadFile(downloadData!.pngUrl, 'coloring-page.png')}
                 className="flex items-center justify-center gap-2 h-12"
               >
-                <Image className="h-5 w-5" />
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                 <Image className="h-5 w-5" />
                 Download PNG
               </Button>
             </div>

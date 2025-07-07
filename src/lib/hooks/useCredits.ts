@@ -23,7 +23,7 @@ export function useCredits() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [])
 
   // Fetch credits
   const fetchCredits = useCallback(async () => {
@@ -53,7 +53,7 @@ export function useCredits() {
     } finally {
       setLoading(false)
     }
-  }, [user, supabase])
+  }, [user])
 
   // Use credits
   const useCredits = async (amount: number): Promise<boolean> => {
@@ -109,7 +109,7 @@ export function useCredits() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, supabase, fetchCredits])
+  }, [user, fetchCredits])
 
   return {
     credits,
