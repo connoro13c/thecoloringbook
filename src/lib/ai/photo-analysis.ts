@@ -66,6 +66,7 @@ export async function analyzePhoto(imageBase64: string, logger?: CompactLogger |
 
     const response = await openai.chat.completions.create({
       model: OPENAI_MODELS.VISION,
+      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',

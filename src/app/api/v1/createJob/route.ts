@@ -19,6 +19,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedRequest = CreateJobSchema.parse(body)
 
+    // Protect against oversized uploads (Vercel limit ~4.5MB)
+    const MAX_BASE64 = 4_000_000 // ~3MB binary image
+    if (validatedRequest.photo.length > MAX_BASE64) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Image too large (max 3MB). Please upload a smaller image.' 
+        },
+        { status: 413 }
+      )
+    }
+
     const supabase = await createClient()
     
     // For non-preview (full-res) generation, check authentication and credits
