@@ -217,7 +217,7 @@ export default function Home() {
                       {isGeneratingPreview ? 'Creating preview...' : 'Create coloring page'}
                     </h3>
                     <p className="text-sm text-emerald-700/80">
-                      {isGeneratingPreview ? 'This usually takes 10-15 seconds' : 'Free preview - no account required'}
+                      {isGeneratingPreview ? 'This takes about a minute to complete' : 'Free preview - no account required'}
                     </p>
                   </div>
                 </div>

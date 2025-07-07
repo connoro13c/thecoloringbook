@@ -34,9 +34,22 @@ export async function createClient() {
  * Use this for admin operations or anonymous user data
  */
 export function createServiceClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase URL or service role key')
+  }
+  
+  // Validate that the service role key belongs to the same project
+  const projectRef = supabaseUrl.split('//')[1]?.split('.')[0]
+  if (projectRef && !serviceRoleKey.includes('service_role')) {
+    throw new Error('Invalid service role key format')
+  }
+  
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    serviceRoleKey,
     {
       cookies: {
         getAll() {
