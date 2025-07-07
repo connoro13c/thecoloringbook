@@ -15,6 +15,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAssociating, setIsAssociating] = useState(false)
+  const [email, setEmail] = useState('')
 
   // Use singleton supabase client
 
@@ -75,16 +76,20 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
 
   if (!isOpen) return null
 
-  const handleGoogleSignIn = async () => {
-    console.log('🎯 Button clicked, starting auth flow...')
+  const handleMagicLinkSignIn = async () => {
+    if (!email) {
+      setError('Please enter your email address')
+      return
+    }
+
+    console.log('🎯 Magic link button clicked, starting auth flow for:', email)
     
     setIsLoading(true)
     setError(null)
     
     try {
-      // Use magic link instead for testing
       const { error } = await supabase.auth.signInWithOtp({
-        email: 'test@example.com',
+        email: email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`
         }
@@ -96,6 +101,32 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
         setIsLoading(false)
       } else {
         setError('Check your email for the magic link!')
+        setIsLoading(false)
+      }
+    } catch (err) {
+      console.error('💥 Unexpected error in handleMagicLinkSignIn:', err)
+      setError(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setIsLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    console.log('🎯 Google sign-in button clicked')
+    
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+
+      if (error) {
+        console.error('❌ Google sign-in error:', error)
+        setError(`Google sign-in error: ${error.message}`)
         setIsLoading(false)
       }
     } catch (err) {
@@ -177,11 +208,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
 
           {/* Action Buttons */}
           <div className="space-y-3">
+            {/* Google Sign In */}
             <Button
-              onClick={() => {
-                console.log('🔥 BUTTON CLICKED - THIS SHOULD APPEAR IN CONSOLE!')
-                handleGoogleSignIn()
-              }}
+              onClick={handleGoogleSignIn}
               disabled={isLoading || isAssociating}
               className="w-full bg-primary-indigo hover:bg-primary-indigo/90 text-white font-medium py-3"
             >
@@ -215,9 +244,44 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
                       fill="currentColor"
                     />
                   </svg>
-                  Continue with Google
+                  Sign in with Google
                 </div>
               )}
+            </Button>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-neutral-slate/20" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-neutral-ivory px-2 text-neutral-slate/60">Or</span>
+              </div>
+            </div>
+
+            {/* Email Input */}
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-neutral-slate">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ob.connor@gmail.com"
+                className="w-full px-3 py-2 border border-neutral-slate/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-indigo/50 focus:border-primary-indigo"
+              />
+            </div>
+
+            {/* Magic Link Button */}
+            <Button
+              onClick={handleMagicLinkSignIn}
+              disabled={isLoading || isAssociating || !email}
+              variant="outline"
+              className="w-full"
+            >
+              Send Magic Link
             </Button>
             
             <Button
