@@ -179,7 +179,7 @@ export default function TestPage() {
       {/* Modals */}
       <AuthModal
         open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onOpenChange={setShowAuthModal}
         onAuthSuccess={() => {
           setShowAuthModal(false)
           console.log('✅ Auth test successful!')
