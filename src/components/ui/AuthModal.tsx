@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
-import { createAuthState } from '@/lib/auth-state'
 import { useState, useEffect } from 'react'
 
 interface AuthModalProps {
@@ -58,7 +57,16 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess, pendingPa
     
     try {
       // Create signed state for secure page claiming
-      const state = pendingPageId ? createAuthState(pendingPageId) : undefined
+      let state: string | undefined
+      if (pendingPageId) {
+        const response = await fetch('/api/auth/create-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: pendingPageId })
+        })
+        const result = await response.json()
+        state = result.state
+      }
       
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
@@ -90,7 +98,16 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess, pendingPa
     
     try {
       // Create signed state for secure page claiming
-      const state = pendingPageId ? createAuthState(pendingPageId) : undefined
+      let state: string | undefined
+      if (pendingPageId) {
+        const response = await fetch('/api/auth/create-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pageId: pendingPageId })
+        })
+        const result = await response.json()
+        state = result.state
+      }
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

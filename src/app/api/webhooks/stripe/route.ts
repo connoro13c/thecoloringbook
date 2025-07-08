@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.text();
-    const headersList = await headers();
+    const headersList = headers();
     const sig = headersList.get('stripe-signature');
     
     if (!sig) {
@@ -80,9 +80,9 @@ export async function POST(request: NextRequest) {
           .eq('id', pageId)
           .single();
 
-        if (pageError || !pageData) {
-          console.error('Error fetching page data:', pageError);
-          return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+        if (pageError || !pageData || !pageData.jpg_path) {
+          console.error('Error fetching page data or missing jpg_path:', pageError);
+          return NextResponse.json({ error: 'Page not found or missing image' }, { status: 404 });
         }
 
         // Step 2: Get the image data from storage
