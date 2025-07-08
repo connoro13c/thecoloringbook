@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { stripe, validateDonationAmount } from '@/lib/stripe';
 import { z } from 'zod';
-import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter';
+import { rateLimit } from '@/lib/rate-limiter';
 
 const checkoutSchema = z.object({
   pageId: z.string().uuid(),

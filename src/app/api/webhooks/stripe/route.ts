@@ -5,7 +5,7 @@ import { createHighResVersions } from '@/lib/services/file-generation';
 import { sendDonationReceipt } from '@/lib/services/email-service';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter';
+import { rateLimit } from '@/lib/rate-limiter';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
