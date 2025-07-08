@@ -5,14 +5,35 @@ import { createHighResVersions } from '@/lib/services/file-generation';
 import { sendDonationReceipt } from '@/lib/services/email-service';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
+import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+// Validate required environment variables
+if (!webhookSecret) {
+  throw new Error('STRIPE_WEBHOOK_SECRET is required');
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting to prevent webhook abuse
+    const rateLimitResult = rateLimit({
+      maxRequests: 100,
+      windowMs: 60 * 1000, // 1 minute
+    })(request)
+    
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
+    }
+    
     const body = await request.text();
     const headersList = await headers();
-    const sig = headersList.get('stripe-signature')!;
+    const sig = headersList.get('stripe-signature');
+    
+    if (!sig) {
+      console.error('Missing Stripe signature header');
+      return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+    }
 
     let event: Stripe.Event;
 
@@ -26,13 +47,26 @@ export async function POST(request: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       
-      // Extract metadata
+      // Extract and validate metadata
       const pageId = session.metadata?.pageId;
       const userId = session.metadata?.userId;
 
       if (!pageId || !userId) {
         console.error('Missing required metadata in session:', session.id);
         return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
+      }
+      
+      // Validate metadata format (UUIDs)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(pageId) || !uuidRegex.test(userId)) {
+        console.error('Invalid UUID format in metadata:', { pageId, userId });
+        return NextResponse.json({ error: 'Invalid metadata format' }, { status: 400 });
+      }
+      
+      // Validate payment amount (minimum $1)
+      if (!session.amount_total || session.amount_total < 100) {
+        console.error('Invalid payment amount:', session.amount_total);
+        return NextResponse.json({ error: 'Invalid payment amount' }, { status: 400 });
       }
 
       // Use service role client to bypass RLS

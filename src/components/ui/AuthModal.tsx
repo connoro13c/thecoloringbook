@@ -95,8 +95,7 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess, pendingPa
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          state: state
+          redirectTo: `${window.location.origin}/auth/callback?state=${encodeURIComponent(state || '')}`
         }
       })
 
@@ -247,7 +246,7 @@ export default function AuthModal({ open, onOpenChange, onAuthSuccess, pendingPa
             {/* Magic Link Button */}
             <Button
               onClick={handleMagicLinkSignIn}
-              disabled={isLoading || isAssociating || !email}
+              disabled={isLoading || !email}
               variant="outline"
               className="w-full"
             >

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AuthModal } from '@/components/ui/AuthModal'
+import AuthModal from '@/components/ui/AuthModal'
 import { DonationModal } from '@/components/forms/DonationModal'
 import { useCredits } from '@/lib/hooks/useCredits'
 import { supabase } from '@/lib/supabase/client'

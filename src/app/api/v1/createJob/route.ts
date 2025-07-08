@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { GenerationService } from '@/lib/services/generation-service'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter'
 
 // Request validation schema
 const CreateJobSchema = z.object({
@@ -15,6 +16,19 @@ const CreateJobSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting for AI generation
+    const rateLimitResult = rateLimit(rateLimitConfigs.aiGeneration)(request)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Too many requests. Please wait before trying again.',
+          resetTime: rateLimitResult.resetTime
+        },
+        { status: 429 }
+      )
+    }
+    
     // Parse and validate request
     const body = await request.json()
     const validatedRequest = CreateJobSchema.parse(body)

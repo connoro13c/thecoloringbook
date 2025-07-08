@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter'
 
 export async function GET(req: NextRequest) {
+  // Apply rate limiting for auth endpoints
+  const rateLimitResult = rateLimit(rateLimitConfigs.auth)(req)
+  if (!rateLimitResult.success) {
+    return NextResponse.redirect(new URL('/login?error=rate_limit', req.url))
+  }
+  
   const supabase = await createClient()
 
   // Handle OAuth flow with code parameter

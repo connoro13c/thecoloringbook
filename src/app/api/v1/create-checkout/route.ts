@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { stripe, validateDonationAmount } from '@/lib/stripe';
 import { z } from 'zod';
+import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter';
 
 const checkoutSchema = z.object({
   pageId: z.string().uuid(),
@@ -10,6 +11,19 @@ const checkoutSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Apply rate limiting for checkout creation
+    const rateLimitResult = rateLimit({
+      maxRequests: 10,
+      windowMs: 5 * 60 * 1000, // 5 minutes
+    })(request)
+    
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many checkout attempts. Please wait before trying again.' },
+        { status: 429 }
+      )
+    }
+    
     const supabase = await createClient();
     
     // Check authentication

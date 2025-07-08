@@ -16,7 +16,7 @@ export interface AuthState {
 export function encodeAuthState(state: AuthState): string {
   const payload = JSON.stringify(state)
   const b64 = Buffer.from(payload).toString('base64url')
-  const signature = createHmac('sha256', SECRET).update(b64).digest('base64url')
+  const signature = createHmac('sha256', SECRET!).update(b64).digest('base64url')
   return `${b64}.${signature}`
 }
 
@@ -31,7 +31,7 @@ export function decodeAuthState(token: string): AuthState {
     }
 
     // Verify signature
-    const expectedSignature = createHmac('sha256', SECRET).update(b64).digest('base64url')
+    const expectedSignature = createHmac('sha256', SECRET!).update(b64).digest('base64url')
     if (signature !== expectedSignature) {
       throw new Error('Invalid signature')
     }
