@@ -7,15 +7,16 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { rateLimit } from '@/lib/rate-limiter';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-// Validate required environment variables
-if (!webhookSecret) {
-  throw new Error('STRIPE_WEBHOOK_SECRET is required');
-}
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate required environment variables at runtime
+    if (!webhookSecret) {
+      console.error('STRIPE_WEBHOOK_SECRET is required');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     // Apply rate limiting to prevent webhook abuse
     const rateLimitResult = rateLimit({
       maxRequests: 100,
