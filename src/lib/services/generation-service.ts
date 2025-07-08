@@ -70,6 +70,14 @@ export class GenerationService {
       const storageResult = await this.storeImage(generationResult.imageUrl, logger)
       
       // Step 5: Save to database
+      console.log('🗄️ Saving to database:', {
+        prompt: dallePrompt.substring(0, 100) + '...',
+        style: request.style,
+        difficulty: request.difficulty,
+        jpgPath: storageResult.path,
+        photoAnalysisType: typeof photoAnalysis
+      })
+      
       const pageRecord = await this.saveToDatabase({
         prompt: dallePrompt,
         style: request.style,
@@ -226,6 +234,15 @@ export class GenerationService {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
+    console.log('📝 Creating page with params:', {
+      user_id: user?.id,
+      promptLength: params.prompt.length,
+      style: params.style,
+      difficulty: params.difficulty,
+      jpg_path: params.jpgPath,
+      analysisOutputType: typeof params.analysisOutput
+    })
+    
     const pageRecord = await createPage({
       user_id: user?.id,
       prompt: params.prompt,
@@ -234,6 +251,8 @@ export class GenerationService {
       jpg_path: params.jpgPath,
       analysis_output: params.analysisOutput
     })
+    
+    console.log('✅ Page created with ID:', pageRecord.id, 'jpg_path:', pageRecord.jpg_path)
     
     return pageRecord
   }

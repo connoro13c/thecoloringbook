@@ -13,6 +13,27 @@ interface DashboardClientProps {
   userEmail: string
 }
 
+// Helper function to get public URL for image
+function getImageUrl(jpgPath: string | null | undefined): string | null {
+  if (!jpgPath) return null
+  
+  // If it already looks like a URL, return it
+  if (jpgPath.startsWith('http')) return jpgPath
+  
+  // If it looks like a prompt (long text), return null to show placeholder
+  if (jpgPath.length > 100 || jpgPath.includes('Create a black-and-white')) {
+    return null
+  }
+  
+  // Create public URL from Supabase Storage
+  const supabase = createClient()
+  const { data } = supabase.storage
+    .from('pages')
+    .getPublicUrl(jpgPath)
+  
+  return data.publicUrl
+}
+
 export default function DashboardClient({ initialPages, userEmail }: DashboardClientProps) {
   const [pages, setPages] = useState<PageRecord[]>(initialPages)
   const [isClaimingPages, setIsClaimingPages] = useState(false)
@@ -129,27 +150,43 @@ export default function DashboardClient({ initialPages, userEmail }: DashboardCl
 
         {pages && pages.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {pages.map((page: PageRecord) => (
-              <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4">
-                <div className="relative aspect-square bg-gray-100 rounded-xl mb-4 overflow-hidden">
-                  {page.jpg_path && (
-                    <Image
-                      src={page.jpg_path}
-                      alt={`Coloring page: ${page.prompt}`}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                      className="object-cover rounded-xl"
-                      unoptimized
-                    />
-                  )}
+            {pages.map((page: PageRecord) => {
+              const imageUrl = getImageUrl(page.jpg_path)
+              return (
+                <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4">
+                  <div className="relative aspect-square bg-gray-100 rounded-xl mb-4 overflow-hidden">
+                    {imageUrl ? (
+                      <Image
+                        src={imageUrl}
+                        alt={`Coloring page: ${page.prompt}`}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                        className="object-cover rounded-xl"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400">
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">🎨</div>
+                          <p className="text-sm">Image not available</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2 truncate" title={page.prompt}>
+                    {page.prompt.length > 50 ? `${page.prompt.substring(0, 50)}...` : page.prompt}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-2">Style: {page.style}</p>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Created: {new Date(page.created_at).toLocaleDateString()}
+                  </p>
+                  {/* Debug info - can be removed later */}
+                  <p className="text-xs text-red-500 truncate" title={page.jpg_path || 'No path'}>
+                    Path: {page.jpg_path ? (page.jpg_path.length > 30 ? `${page.jpg_path.substring(0, 30)}...` : page.jpg_path) : 'None'}
+                  </p>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{page.prompt}</h3>
-                <p className="text-sm text-gray-600 mb-2">Style: {page.style}</p>
-                <p className="text-xs text-gray-500">
-                  Created: {new Date(page.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
