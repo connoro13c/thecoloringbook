@@ -178,7 +178,7 @@ export default function TestPage() {
 
       {/* Modals */}
       <AuthModal
-        isOpen={showAuthModal}
+        open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         onAuthSuccess={() => {
           setShowAuthModal(false)
