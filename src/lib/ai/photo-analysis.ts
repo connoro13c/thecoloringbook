@@ -1,4 +1,4 @@
-import { openai, OPENAI_MODELS } from '@/lib/openai'
+import { getOpenAI, getOpenAIModels } from '@/lib/openai'
 import type { CompactLogger } from './compact-logger'
 import type { TieredLogger } from './tiered-logger'
 import type { ProgressiveLogger } from './progressive-logger'
@@ -50,7 +50,7 @@ export async function analyzePhoto(imageBase64: string, logger?: CompactLogger |
     }
     
     console.log('🔍 Photo analysis starting with base64 length:', imageBase64.length)
-    console.log('🤖 Using Vision model:', OPENAI_MODELS.VISION)
+    console.log('🤖 Using Vision model:', getOpenAIModels().VISION)
     
     // Update progress if using ProgressiveLogger
     if (logger && 'updateVisionProgress' in logger) {
@@ -64,8 +64,10 @@ export async function analyzePhoto(imageBase64: string, logger?: CompactLogger |
       controller.abort()
     }, 70000)
 
+    const openai = getOpenAI()
+    const models = getOpenAIModels()
     const response = await openai.chat.completions.create({
-      model: OPENAI_MODELS.VISION,
+      model: models.VISION,
       response_format: { type: 'json_object' },
       messages: [
         {

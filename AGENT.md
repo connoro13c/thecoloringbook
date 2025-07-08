@@ -182,6 +182,45 @@ src/
 - Core Web Vitals ≥90; <200 KB JS first load
 - WCAG-AA accessibility, colour-contrast ≥4.5:1
 
+### Environment Variables (CRITICAL)
+**Rule**: NEVER access `process.env` at module level - always use runtime access
+
+```typescript
+// ❌ BAD - Causes Next.js build failures
+const secret = process.env.SECRET_KEY!;
+if (!secret) throw new Error('Missing secret');
+
+// ✅ GOOD - Runtime access only
+function getSecret() {
+  const secret = process.env.SECRET_KEY;
+  if (!secret) throw new Error('Missing secret');
+  return secret;
+}
+```
+
+**Pattern**: Use lazy initialization for expensive resources:
+```typescript
+// ❌ BAD - Eager initialization
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// ✅ GOOD - Lazy initialization
+let stripeInstance: Stripe | null = null;
+export function getStripe() {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(getRequiredEnv('STRIPE_SECRET_KEY'));
+  }
+  return stripeInstance;
+}
+```
+
+**Utility**: Use `src/lib/env-validation.ts` for consistent validation:
+```typescript
+import { getRequiredEnv, getOptionalEnv } from '@/lib/env-validation';
+
+const apiKey = getRequiredEnv('OPENAI_API_KEY');
+const model = getOptionalEnv('OPENAI_MODEL', 'gpt-4o');
+```
+
 ### Frontend Guidelines
 - Mobile-first, 2-column desktop, 44px touch targets
 - app/ router pages → thin wrappers

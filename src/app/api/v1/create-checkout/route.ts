@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { stripe, validateDonationAmount } from '@/lib/stripe';
+import { getStripe, validateDonationAmount } from '@/lib/stripe';
 import { z } from 'zod';
 import { rateLimit } from '@/lib/rate-limiter';
 
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // Create Stripe checkout session
+    const stripe = getStripe()
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [

@@ -1,4 +1,4 @@
-import { openai, OPENAI_MODELS } from '@/lib/openai'
+import { getOpenAI, getOpenAIModels } from '@/lib/openai'
 import type { CompactLogger } from './compact-logger'
 import type { TieredLogger } from './tiered-logger'
 import type { ProgressiveLogger } from './progressive-logger'
@@ -20,8 +20,10 @@ export async function generateColoringPage(prompt: string, logger?: CompactLogge
       logger.updateImageProgress('Building prompt for gpt-image-1');
     }
 
+    const openai = getOpenAI()
+    const models = getOpenAIModels()
     const response = await openai.images.generate({
-      model: OPENAI_MODELS.ImageGen,
+      model: models.ImageGen,
       prompt: prompt,
       n: 1,
       size: '1024x1024'

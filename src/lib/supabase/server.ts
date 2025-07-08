@@ -1,13 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from './client'
+import { getRequiredEnv } from '../env-validation'
 
 export async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
+    getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
     {
       cookies: {
         getAll() {
@@ -34,12 +35,8 @@ export async function createClient() {
  * Use this for admin operations or anonymous user data
  */
 export function createServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
-  
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase URL or service role key')
-  }
+  const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL').trim()
+  const serviceRoleKey = getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY').trim()
   
   // Basic validation that we have a properly formatted key
   if (!serviceRoleKey.startsWith('eyJ')) {

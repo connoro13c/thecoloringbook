@@ -1,13 +1,21 @@
 // Server-side Stripe configuration (Node.js only)
 import Stripe from 'stripe';
+import { getRequiredEnv } from './env-validation';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing STRIPE_SECRET_KEY environment variable');
+let stripeInstance: Stripe | null = null;
+
+export function getStripe(): Stripe {
+  if (!stripeInstance) {
+    const secretKey = getRequiredEnv('STRIPE_SECRET_KEY');
+    stripeInstance = new Stripe(secretKey, {
+      apiVersion: '2025-06-30.basil',
+    });
+  }
+  return stripeInstance;
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2025-06-30.basil',
-});
+// For backwards compatibility - but prefer using getStripe() to avoid build-time issues
+export { getStripe as stripe };
 
 // Re-export client utilities for server use
 export { STRIPE_CONFIG, formatPrice, validateDonationAmount } from './stripe-client';
