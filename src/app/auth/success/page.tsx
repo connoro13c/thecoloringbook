@@ -1,6 +1,5 @@
 import { claimPage } from '@/app/actions/claimPage'
 import { createClient } from '@/lib/supabase/server'
-import { decodeAuthState } from '@/lib/auth-state'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -22,8 +21,16 @@ export default async function AuthSuccessPage({
   // Verify and decode signed state if present
   if (resolvedSearchParams.state) {
     try {
-      const authState = decodeAuthState(resolvedSearchParams.state)
-      pageId = authState.pageId
+      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/decode-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: resolvedSearchParams.state })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        pageId = result.authState.pageId
+      }
     } catch (error) {
       console.error('Invalid auth state in success page:', error)
       // Continue without page claiming if state is invalid
