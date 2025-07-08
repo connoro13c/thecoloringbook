@@ -17,8 +17,8 @@ function LoginContent() {
       
       if (data.session) {
         // User is authenticated, redirect to success
-        const pageId = searchParams.get('page')
-        const successUrl = pageId ? `/auth/success?page=${pageId}` : '/auth/success'
+        const state = searchParams.get('state')
+        const successUrl = state ? `/auth/success?state=${state}` : '/auth/success'
         router.replace(successUrl)
         return
       }
@@ -30,6 +30,9 @@ function LoginContent() {
       
       if (accessToken && refreshToken) {
         try {
+          // Clear tokens from browser history immediately for security
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          
           // Set the session using the tokens from the URL fragment
           const { data: sessionData, error } = await supabase.auth.setSession({
             access_token: accessToken,
@@ -44,8 +47,8 @@ function LoginContent() {
           
           if (sessionData.session) {
             // Success! Redirect to success page
-            const pageId = searchParams.get('page')
-            const successUrl = pageId ? `/auth/success?page=${pageId}` : '/auth/success'
+            const state = searchParams.get('state')
+            const successUrl = state ? `/auth/success?state=${state}` : '/auth/success'
             router.replace(successUrl)
             return
           }

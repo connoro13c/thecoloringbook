@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
+import { randomBytes } from 'crypto'
 import type { ProgressiveLogger } from './ai/progressive-logger'
 
 // Server-side Supabase client with service role key
@@ -18,10 +19,11 @@ const BUCKET_NAME = 'pages'
 export interface StorageResult {
   path: string
   publicUrl: string
+  nonce?: string // For anonymous uploads that need claiming
 }
 
 /**
- * Upload file for anonymous users to public folder
+ * Upload file for anonymous users to public folder with ownership tracking
  */
 export async function uploadAnonymousFile(
   file: File,
@@ -30,6 +32,7 @@ export async function uploadAnonymousFile(
   try {
     const fileName = `${uuidv4()}-${file.name}`
     const filePath = `public/${fileName}`
+    const nonce = randomBytes(32).toString('hex')
     
     if (logger) {
       logger.updateStorageProgress('Uploading to public storage', `${Math.round(file.size / 1024)}KB`);
@@ -47,6 +50,21 @@ export async function uploadAnonymousFile(
       throw new Error(`Anonymous storage upload failed: ${error.message}`)
     }
 
+    // Record file ownership with nonce
+    const { error: ownershipError } = await supabaseAdmin
+      .from('file_ownership')
+      .insert({
+        file_path: data.path,
+        creation_nonce: nonce
+      })
+
+    if (ownershipError) {
+      console.error('❌ File ownership tracking failed:', ownershipError)
+      // Clean up uploaded file
+      await supabaseAdmin.storage.from(BUCKET_NAME).remove([data.path])
+      throw new Error('Failed to track file ownership')
+    }
+
     if (logger) {
       logger.updateStorageProgress('Generating public URL');
     }
@@ -58,7 +76,8 @@ export async function uploadAnonymousFile(
 
     return {
       path: data.path,
-      publicUrl: publicUrlData.publicUrl
+      publicUrl: publicUrlData.publicUrl,
+      nonce // Return nonce for claiming later
     }
   } catch (error) {
     console.error('❌ Anonymous storage error:', error)
@@ -67,34 +86,67 @@ export async function uploadAnonymousFile(
 }
 
 /**
- * Move file from public folder to user folder
+ * Move file from public folder to user folder with ownership verification
  */
 export async function associateFileWithUser(
   filePath: string, 
   userId: string,
+  nonce: string,
   logger?: ProgressiveLogger
 ): Promise<StorageResult> {
   try {
+    // Verify ownership via nonce
+    const { data: ownership, error: ownershipError } = await supabaseAdmin
+      .from('file_ownership')
+      .select('id, claimed_by')
+      .eq('file_path', filePath)
+      .eq('creation_nonce', nonce)
+      .single()
+
+    if (ownershipError || !ownership) {
+      throw new Error('Invalid ownership proof - file not found or nonce mismatch')
+    }
+
+    if (ownership.claimed_by) {
+      throw new Error('File already claimed by another user')
+    }
+
     const newPath = filePath.replace('public/', `${userId}/`)
     
     if (logger) {
       logger.updateStorageProgress('Moving file to user folder');
     }
 
-    const { error } = await supabaseAdmin.storage
+    // Move the file
+    const { error: moveError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .move(filePath, newPath)
 
-    if (error) {
-      console.error('❌ File association failed:', error)
-      throw new Error(`File association failed: ${error.message}`)
+    if (moveError) {
+      console.error('❌ File association failed:', moveError)
+      throw new Error(`File association failed: ${moveError.message}`)
+    }
+
+    // Update ownership record to mark as claimed
+    const { error: claimError } = await supabaseAdmin
+      .from('file_ownership')
+      .update({
+        claimed_by: userId,
+        claimed_at: new Date().toISOString()
+      })
+      .eq('id', ownership.id)
+
+    if (claimError) {
+      console.error('❌ Ownership claim update failed:', claimError)
+      // File was moved but ownership not updated - this is a partial failure
+      // We could attempt to move it back, but for now just log
     }
 
     if (logger) {
       logger.updateStorageProgress('Generating signed URL for user');
     }
 
-    // Get public URL for the new path (use newPath since move operation may not return path)
+    // Get public URL for the new path
     const { data: publicUrlData } = supabaseAdmin.storage
       .from(BUCKET_NAME)
       .getPublicUrl(newPath)

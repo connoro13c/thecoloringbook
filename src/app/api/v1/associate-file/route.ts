@@ -5,7 +5,8 @@ import { associateFileWithUser } from '@/lib/storage'
 
 // Request validation schema
 const AssociateFileSchema = z.object({
-  filePath: z.string().min(1, 'File path is required')
+  filePath: z.string().min(1, 'File path is required'),
+  nonce: z.string().min(32, 'Ownership nonce is required') // 32 chars minimum for security
 })
 
 /**
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse and validate request
     const body = await request.json()
-    const { filePath } = AssociateFileSchema.parse(body)
+    const { filePath, nonce } = AssociateFileSchema.parse(body)
 
     // Check authentication
     const supabase = await createClient()
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Move file to user folder
-    const newPath = await associateFileWithUser(filePath, user.id)
+    // Move file to user folder with ownership verification
+    const newPath = await associateFileWithUser(filePath, user.id, nonce)
 
     return NextResponse.json({ 
       success: true, 

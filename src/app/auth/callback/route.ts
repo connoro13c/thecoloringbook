@@ -14,13 +14,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=auth_failed', req.url))
     }
 
-    // Optional: pass pageId through the OAuth flow via 'state' parameter
-    const pageId = req.nextUrl.searchParams.get('state') || ''
-    
-    // Redirect to success page with optional page ID
+    // Handle signed state parameter securely
+    const state = req.nextUrl.searchParams.get('state')
     const redirectUrl = new URL('/auth/success', req.url)
-    if (pageId) {
-      redirectUrl.searchParams.set('page', pageId)
+    
+    if (state) {
+      try {
+        // Pass signed state to success page for verification
+        redirectUrl.searchParams.set('state', state)
+      } catch (error) {
+        console.error('Invalid auth state in OAuth callback:', error)
+        // Continue without page claiming if state is invalid
+      }
     }
     
     return NextResponse.redirect(redirectUrl)
@@ -29,10 +34,10 @@ export async function GET(req: NextRequest) {
   // Handle magic link flow - redirect to login page to process tokens from URL fragment
   // Magic links contain tokens in the URL fragment (#access_token=...) which can't be read server-side
   // The login page will handle extracting these tokens client-side
-  const pageId = req.nextUrl.searchParams.get('state') || ''
+  const state = req.nextUrl.searchParams.get('state')
   const loginUrl = new URL('/login', req.url)
-  if (pageId) {
-    loginUrl.searchParams.set('page', pageId)
+  if (state) {
+    loginUrl.searchParams.set('state', state)
   }
   
   return NextResponse.redirect(loginUrl)

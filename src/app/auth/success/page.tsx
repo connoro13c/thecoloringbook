@@ -1,12 +1,13 @@
 import { claimPage } from '@/app/actions/claimPage'
 import { createClient } from '@/lib/supabase/server'
+import { decodeAuthState } from '@/lib/auth-state'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 export default async function AuthSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ state?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,10 +17,23 @@ export default async function AuthSuccessPage({
   }
 
   const resolvedSearchParams = await searchParams
-  // If there's a page to claim, claim it
-  if (resolvedSearchParams.page) {
+  let pageId: string | undefined
+  
+  // Verify and decode signed state if present
+  if (resolvedSearchParams.state) {
     try {
-      await claimPage(resolvedSearchParams.page)
+      const authState = decodeAuthState(resolvedSearchParams.state)
+      pageId = authState.pageId
+    } catch (error) {
+      console.error('Invalid auth state in success page:', error)
+      // Continue without page claiming if state is invalid
+    }
+  }
+  
+  // If there's a verified page to claim, claim it
+  if (pageId) {
+    try {
+      await claimPage(pageId)
     } catch (error) {
       console.error('Error claiming page:', error)
       // Continue anyway - user is still authenticated
@@ -32,7 +46,7 @@ export default async function AuthSuccessPage({
         <div className="text-6xl">🎉</div>
         <h1 className="text-3xl font-bold text-gray-900">Welcome!</h1>
         <p className="text-gray-600">
-          {resolvedSearchParams.page 
+          {pageId 
             ? "Your coloring page has been saved to your account!"
             : "You're now signed in and ready to create coloring pages!"
           }
