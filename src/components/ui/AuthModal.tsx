@@ -1,20 +1,21 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
+import { createAuthState } from '@/lib/auth-state'
 import { useState, useEffect } from 'react'
 
 interface AuthModalProps {
-  isOpen: boolean
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onAuthSuccess?: () => void
-  pendingFilePath?: string
+  pendingPageId?: string
 }
 
-export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: AuthModalProps) {
+export default function AuthModal({ open, onOpenChange, onAuthSuccess, pendingPageId }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isAssociating, setIsAssociating] = useState(false)
   const [email, setEmail] = useState('')
 
   // Use singleton supabase client
@@ -24,47 +25,17 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         // Only process auth events when modal is open
-        if (!isOpen) return
+        if (!open) return
         
         if (event === 'SIGNED_IN' && session?.user) {
           setIsLoading(false)
           
-          // If we have a pending file path, associate it with the user
-          if (pendingFilePath) {
-            setIsAssociating(true)
-            try {
-              const response = await fetch('/api/v1/associate-file', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filePath: pendingFilePath }),
-              })
-
-              if (!response.ok) {
-                throw new Error('Failed to associate file with user')
-              }
-
-              const result = await response.json()
-              console.log('✅ File associated with user:', result)
-              
-              // Call success callback if provided
-              if (onAuthSuccess) {
-                onAuthSuccess()
-              }
-            } catch (error) {
-              console.error('❌ File association failed:', error)
-              setError('Failed to save your coloring page. Please try again.')
-              setIsAssociating(false)
-              return
-            }
-          }
-          
-          setIsAssociating(false)
-          onClose() // Close modal after successful auth and file association
+          // Auth success will be handled by the server via callback route
+          // No need to manually associate files here - signed state handles it
+          onOpenChange(false) // Close modal after successful auth
           
           // Call success callback if provided
-          if (onAuthSuccess && !pendingFilePath) {
+          if (onAuthSuccess) {
             onAuthSuccess()
           }
         }
@@ -72,9 +43,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     )
 
     return () => subscription.unsubscribe()
-  }, [isOpen, pendingFilePath, onAuthSuccess, onClose])
-
-  if (!isOpen) return null
+  }, [open, onAuthSuccess, onOpenChange])
 
   const handleMagicLinkSignIn = async () => {
     if (!email) {
@@ -88,10 +57,13 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     setError(null)
     
     try {
+      // Create signed state for secure page claiming
+      const state = pendingPageId ? createAuthState(pendingPageId) : undefined
+      
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: `${window.location.origin}/auth/callback${state ? `?state=${state}` : ''}`
         }
       })
 
@@ -117,10 +89,14 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
     setError(null)
     
     try {
+      // Create signed state for secure page claiming
+      const state = pendingPageId ? createAuthState(pendingPageId) : undefined
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          state: state
         }
       })
 
@@ -139,10 +115,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
 
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-neutral-ivory rounded-2xl shadow-2xl max-w-md w-full">
-        {/* Header */}
-        <div className="p-6 text-center border-b border-neutral-slate/10">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-neutral-ivory max-w-md">
+        <DialogHeader className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary-indigo/20 to-secondary-rose/20 flex items-center justify-center">
             <svg className="w-8 h-8 text-primary-indigo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path 
@@ -160,16 +135,16 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
               />
             </svg>
           </div>
-          <h2 className="font-playfair text-xl font-bold text-neutral-slate mb-2">
-            {pendingFilePath ? 'Save this coloring page' : 'Create account to download'}
-          </h2>
+          <DialogTitle className="font-playfair text-xl font-bold text-neutral-slate mb-2">
+            {pendingPageId ? 'Save this coloring page' : 'Create account to download'}
+          </DialogTitle>
           <p className="text-neutral-slate/70">
-            {pendingFilePath 
+            {pendingPageId 
               ? 'Sign in to save this page to your account and access high-quality downloads.'
               : 'Sign in to save your coloring pages and download high-resolution files.'
             }
           </p>
-        </div>
+        </DialogHeader>
 
         {/* Content */}
         <div className="p-6 space-y-6">
@@ -211,18 +186,13 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
             {/* Google Sign In */}
             <Button
               onClick={handleGoogleSignIn}
-              disabled={isLoading || isAssociating}
+              disabled={isLoading}
               className="w-full bg-primary-indigo hover:bg-primary-indigo/90 text-white font-medium py-3"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Signing in...
-                </div>
-              ) : isAssociating ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving your page...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -286,15 +256,14 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, pendingFilePath }: A
             
             <Button
               variant="outline"
-              onClick={onClose}
-              disabled={isAssociating}
+              onClick={() => onOpenChange(false)}
               className="w-full"
             >
-              {pendingFilePath ? 'Continue as guest' : 'Maybe later'}
+              {pendingPageId ? 'Continue as guest' : 'Maybe later'}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

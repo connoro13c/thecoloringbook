@@ -8,7 +8,7 @@ import { PhotoUpload } from '@/components/forms/PhotoUpload'
 import { Button } from '@/components/ui/button'
 import { CreditBadge } from '@/components/ui/CreditBadge'
 import { Paywall } from '@/components/ui/Paywall'
-import AuthDialog from '@/components/auth/AuthDialog'
+import AuthModal from '@/components/ui/AuthModal'
 import { DonationModal } from '@/components/forms/DonationModal'
 
 import { useGenerationState } from '@/lib/hooks/useGenerationState'
@@ -34,6 +34,7 @@ export default function Home() {
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
 
   const [showDonationModal, setShowDonationModal] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [currentPageId, setCurrentPageId] = useState<string | null>(null)
   // Use singleton supabase client
   
@@ -298,50 +299,47 @@ export default function Home() {
                 </div>
                 
                 <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8">
-                  {/* Save this page - for anonymous users */}
-                  <AuthDialog
-                    pageId={currentPageId || undefined}
-                    trigger={
-                      <div className="
-                        relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
-                        bg-gradient-to-br from-purple-100 via-pink-50 to-rose-50
-                        border-2 border-purple-200/60 shadow-md hover:shadow-lg
-                        hover:border-primary-indigo ring-1 ring-primary-indigo/10
-                      ">
-                        <div className="text-center">
-                          <div className="mb-4 flex justify-center text-purple-700">
-                            <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path 
-                                d="M12 36V12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v24" 
-                                stroke="currentColor" 
-                                strokeWidth="2.5" 
-                                strokeLinecap="round"
-                              />
-                              <path 
-                                d="M32 36H8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" 
-                                stroke="currentColor" 
-                                strokeWidth="2.5" 
-                                strokeLinecap="round"
-                                fill="none"
-                              />
-                              <path 
-                                d="M40 36h-8M16 24h8M16 28h12" 
-                                stroke="currentColor" 
-                                strokeWidth="2" 
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          </div>
-                          <h3 className="font-playfair text-lg font-bold text-purple-800 mb-2">
-                            Save this page
-                          </h3>
-                          <p className="text-sm text-purple-700/80">
-                            Create account to save & download
-                          </p>
-                        </div>
-                      </div>
-                    }
-                  />
+                {/* Save this page - for anonymous users */}
+                <div
+                onClick={() => setShowAuthModal(true)}
+                className="
+                relative p-6 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.02]
+                bg-gradient-to-br from-purple-100 via-pink-50 to-rose-50
+                border-2 border-purple-200/60 shadow-md hover:shadow-lg
+                hover:border-primary-indigo ring-1 ring-primary-indigo/10
+                ">
+                <div className="text-center">
+                <div className="mb-4 flex justify-center text-purple-700">
+                <svg className="w-10 h-10" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path 
+                d="M12 36V12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v24" 
+                stroke="currentColor" 
+                strokeWidth="2.5" 
+                strokeLinecap="round"
+                />
+                <path 
+                d="M32 36H8a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2h24a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z" 
+                stroke="currentColor" 
+                strokeWidth="2.5" 
+                strokeLinecap="round"
+                fill="none"
+                />
+                <path 
+                d="M40 36h-8M16 24h8M16 28h12" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round"
+                />
+                </svg>
+                </div>
+                <h3 className="font-playfair text-lg font-bold text-purple-800 mb-2">
+                Save this page
+                </h3>
+                <p className="text-sm text-purple-700/80">
+                Create account to save & download
+                </p>
+                </div>
+                </div>
 
                   {/* Donate for high-res download */}
                   <div
@@ -442,6 +440,17 @@ export default function Home() {
       />
 
 
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        pendingPageId={currentPageId || undefined}
+        onAuthSuccess={() => {
+          setShowAuthModal(false)
+          console.log('✅ Authentication successful!')
+        }}
+      />
 
       {/* Donation Modal */}
       {currentPageId && (
