@@ -1,19 +1,16 @@
 'use client'
 
-import { useEffect, useRef, Suspense } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const hasProcessed = useRef(false)
   
   useEffect(() => {
     // Handle magic link authentication from URL fragment
     const handleAuthCallback = async () => {
-      if (hasProcessed.current) return
-      hasProcessed.current = true
       
       // First, try to get existing session
       const { data } = await supabase.auth.getSession()
