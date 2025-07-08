@@ -10,6 +10,7 @@ export interface PageRecord {
   jpg_path?: string
   pdf_path?: string
   analysis_output?: PhotoAnalysis
+  claim_token?: string
   created_at: string
   updated_at: string
 }

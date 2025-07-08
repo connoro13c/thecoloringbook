@@ -42,6 +42,7 @@ export interface GenerationResponse {
     analysis: PhotoAnalysis
     prompt: string
     revisedPrompt?: string
+    claimToken?: string
     metadata: {
       style: ColoringStyle
       difficulty: number

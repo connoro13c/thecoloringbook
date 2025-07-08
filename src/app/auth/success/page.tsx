@@ -55,7 +55,7 @@ export default async function AuthSuccessPage({
         <p className="text-gray-600">
           {pageId 
             ? "Your coloring page has been saved to your account!"
-            : "You're now signed in and ready to create coloring pages!"
+            : "You are now signed in and can access, create, and manage your coloring pages"
           }
         </p>
         <div className="space-y-3">

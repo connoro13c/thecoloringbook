@@ -14,6 +14,7 @@ import { DonationModal } from '@/components/forms/DonationModal'
 import { useGenerationState } from '@/lib/hooks/useGenerationState'
 import { useGeneration } from '@/lib/hooks/useGeneration'
 import { useCredits } from '@/lib/hooks/useCredits'
+import { addPendingClaim } from '@/lib/utils/pending-claims'
 
 import { supabase } from '@/lib/supabase/client'
 
@@ -40,7 +41,7 @@ export default function Home() {
   
   const { generate } = useGeneration({
     onGeneratingChange: actions.setGenerating,
-    onSuccess: (imageUrl: string, response?: { data?: { imagePath?: string; pageId?: string } }) => {
+    onSuccess: (imageUrl: string, response?) => {
       actions.setGeneratedImage(imageUrl)
       
       // Store page ID for donation modal
@@ -48,7 +49,11 @@ export default function Home() {
         setCurrentPageId(response.data.pageId)
       }
       
-      // Anonymous previews are automatically saved to database with pageId
+      // For anonymous users, store claim token so they can claim this page after auth
+      if (response?.data?.pageId && response?.data?.claimToken) {
+        addPendingClaim(response.data.pageId, response.data.claimToken)
+        console.log('📝 Stored pending claim for page:', response.data.pageId)
+      }
     },
     onError: actions.setError
   })

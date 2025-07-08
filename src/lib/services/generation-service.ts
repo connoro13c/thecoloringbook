@@ -94,6 +94,7 @@ export class GenerationService {
           analysis: photoAnalysis,
           prompt: dallePrompt,
           revisedPrompt: generationResult.revisedPrompt,
+          claimToken: pageRecord.claim_token,
           metadata: {
             style: request.style,
             difficulty: request.difficulty,
