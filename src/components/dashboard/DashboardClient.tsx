@@ -161,7 +161,7 @@ export default function DashboardClient({ initialPages, userEmail }: DashboardCl
             {pages.map((page: PageRecord) => {
               const imageUrl = getImageUrl(page.jpg_path)
               return (
-                <div key={page.id} className="bg-gradient-to-br from-indigo-50/30 to-rose-50/30 border border-indigo-100/50 rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300">
+                <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300">
                   <div className="relative aspect-square bg-gray-100 rounded-xl mb-4 overflow-hidden">
                     {imageUrl ? (
                       <Image
