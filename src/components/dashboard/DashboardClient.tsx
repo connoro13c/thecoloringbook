@@ -34,6 +34,14 @@ function getImageUrl(jpgPath: string | null | undefined): string | null {
   return data.publicUrl
 }
 
+// Helper function to create a concise scene summary from prompt
+function getSceneSummary(prompt: string): string {
+  const words = prompt.split(' ')
+  if (words.length <= 12) return prompt
+  
+  return words.slice(0, 12).join(' ') + '...'
+}
+
 export default function DashboardClient({ initialPages, userEmail }: DashboardClientProps) {
   const [pages, setPages] = useState<PageRecord[]>(initialPages)
   const [isClaimingPages, setIsClaimingPages] = useState(false)
@@ -153,7 +161,7 @@ export default function DashboardClient({ initialPages, userEmail }: DashboardCl
             {pages.map((page: PageRecord) => {
               const imageUrl = getImageUrl(page.jpg_path)
               return (
-                <div key={page.id} className="bg-white rounded-2xl shadow-lg p-4">
+                <div key={page.id} className="bg-gradient-to-br from-indigo-50/30 to-rose-50/30 border border-indigo-100/50 rounded-2xl shadow-lg p-4 hover:shadow-xl transition-all duration-300">
                   <div className="relative aspect-square bg-gray-100 rounded-xl mb-4 overflow-hidden">
                     {imageUrl ? (
                       <Image
@@ -174,15 +182,11 @@ export default function DashboardClient({ initialPages, userEmail }: DashboardCl
                     )}
                   </div>
                   <h3 className="font-semibold text-gray-900 mb-2 truncate" title={page.prompt}>
-                    {page.prompt.length > 50 ? `${page.prompt.substring(0, 50)}...` : page.prompt}
+                    {getSceneSummary(page.prompt)}
                   </h3>
                   <p className="text-sm text-gray-600 mb-2">Style: {page.style}</p>
-                  <p className="text-xs text-gray-500 mb-1">
+                  <p className="text-xs text-gray-500">
                     Created: {new Date(page.created_at).toLocaleDateString()}
-                  </p>
-                  {/* Debug info - can be removed later */}
-                  <p className="text-xs text-red-500 truncate" title={page.jpg_path || 'No path'}>
-                    Path: {page.jpg_path ? (page.jpg_path.length > 30 ? `${page.jpg_path.substring(0, 30)}...` : page.jpg_path) : 'None'}
                   </p>
                 </div>
               )
