@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { GenerationService } from '@/lib/services/generation-service'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit, rateLimitConfigs } from '@/lib/rate-limiter'
+import { sanitizeSceneDescription, validateSceneDescription } from '@/lib/security/prompt-sanitizer'
 
 // Request validation schema
 const CreateJobSchema = z.object({
@@ -10,14 +11,30 @@ const CreateJobSchema = z.object({
   sceneDescription: z.string().min(1, 'Scene description is required'),
   style: z.enum(['classic', 'ghibli', 'mandala']),
   difficulty: z.number().min(1).max(5).default(3),
-  isPreview: z.boolean().default(false),
-
 })
 
 export async function POST(request: NextRequest) {
   try {
-    // Apply rate limiting for AI generation
-    const rateLimitResult = rateLimit(rateLimitConfigs.aiGeneration)(request)
+    // MANDATORY AUTHENTICATION CHECK - get user first for rate limiting
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Authentication required' 
+        },
+        { status: 401 }
+      )
+    }
+
+    // Apply user-based rate limiting for AI generation
+    const rateLimitResult = rateLimit({
+      ...rateLimitConfigs.aiGeneration,
+      keyGenerator: () => user.id // Use user ID instead of IP for rate limiting
+    })(request)
+    
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { 
@@ -33,6 +50,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedRequest = CreateJobSchema.parse(body)
 
+    // Validate and sanitize scene description
+    const sceneValidation = validateSceneDescription(validatedRequest.sceneDescription)
+    if (!sceneValidation.isValid) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: sceneValidation.reason 
+        },
+        { status: 400 }
+      )
+    }
+
+    // Sanitize scene description to prevent prompt injection
+    const sanitizedSceneDescription = sanitizeSceneDescription(validatedRequest.sceneDescription)
+
+    // Validate image format
+    if (!validatedRequest.photo.match(/^data:image\/(jpeg|jpg|png);base64,/)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Invalid image format. Please upload a JPG or PNG image.' 
+        },
+        { status: 400 }
+      )
+    }
+
     // Protect against oversized uploads (Vercel limit ~4.5MB)
     const MAX_BASE64 = 4_000_000 // ~3MB binary image
     if (validatedRequest.photo.length > MAX_BASE64) {
@@ -45,52 +88,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-    
-    // For non-preview (full-res) generation, check authentication and credits
-    // Skip credit checks for preview generation
-    if (!validatedRequest.isPreview) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError || !user) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Authentication required for full-resolution generation' 
-          },
-          { status: 401 }
-        )
-      }
+    // Check and deduct credits (required for all generations)
+    const { data: creditUsed, error: creditError } = await supabase
+      .rpc('use_credits', { user_uuid: user.id, credit_count: 1 })
 
-      // Check and deduct credits
-      const { data: creditUsed, error: creditError } = await supabase
-        .rpc('use_credits', { user_uuid: user.id, credit_count: 1 })
-
-      if (creditError) {
-        console.error('Credit deduction error:', creditError)
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Error processing credits' 
-          },
-          { status: 500 }
-        )
-      }
-
-      if (!creditUsed) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Insufficient credits',
-            code: 'INSUFFICIENT_CREDITS'
-          },
-          { status: 402 }
-        )
-      }
+    if (creditError) {
+      console.error('Credit deduction error:', creditError)
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Error processing credits' 
+        },
+        { status: 500 }
+      )
     }
 
-    // Delegate to service layer
-    const result = await GenerationService.generateColoringPage(validatedRequest)
+    if (!creditUsed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Insufficient credits',
+          code: 'INSUFFICIENT_CREDITS'
+        },
+        { status: 402 }
+      )
+    }
+
+    // Delegate to service layer (user guaranteed to exist) with sanitized input
+    const sanitizedRequest = {
+      ...validatedRequest,
+      sceneDescription: sanitizedSceneDescription
+    }
+    const result = await GenerationService.generateColoringPage(sanitizedRequest, user)
     
     // Return appropriate status code based on result
     if (result.success) {
@@ -132,8 +161,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Health check endpoint
+// Health check endpoint (development only)
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+  
   return NextResponse.json({ 
     status: 'healthy',
     service: 'coloring-page-generation',

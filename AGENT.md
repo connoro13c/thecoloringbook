@@ -68,21 +68,19 @@ rm -rf .next && npm run dev
 5. **Checkout & Payment** (Stripe Integration) - $0.99 for download, $0.50 for regeneration
 6. **Download & Confirmation** - PDF or JPG download
 
-### Anonymous Users (No Account Required)
-1. Photo upload (1-3 JPG/PNG, ≤10 MB each)
+### Authenticated Users (Required)
+**All users must sign in with Google OAuth before accessing any features.**
+
+1. Photo upload (1-3 JPG/PNG, ≤10 MB each)  
 2. Scene prompt box (e.g., "My daughter flying a unicorn through rainbow clouds")
 3. Style picker – "Classic Cartoon", "Ghibli Style", "Mandala/Pattern"
 4. Difficulty slider 1-5 (controls line weight: 1=extra-thick, 5=extra-thin)
-5. Instant JPG generation & download ($0.99)
-6. "Save this page" CTA to create account
-
-### Authenticated Users (Signed In)
-1. All anonymous features
-2. Auto-save generated pages
-3. History dashboard with unlimited storage
-4. PDF export included with purchase
-5. Re-download saved pages anytime
-6. No rate limits
+5. Instant JPG generation & download (credit-based)
+6. Auto-save generated pages
+7. History dashboard with unlimited storage
+8. PDF export included with purchase
+9. Re-download saved pages anytime
+10. User-based rate limiting
 
 ## Design Philosophy & Style Guide
 
@@ -114,7 +112,7 @@ rm -rf .next && npm run dev
 - **Free Tier**: 5 credits after email verification (one-time)
 - **Supporter Pack**: $5 for 20 credits
 - **Patron Donation**: $10+ (custom amounts, $0.25 per credit)
-- **Anonymous Previews**: Free low-res previews, no account required
+- **Credit-based System**: All users purchase credits after signing in
 - **Stripe Integration**: Secure checkout with fraud prevention
 - **Donation-based**: All proceeds go to Stanford Children's Hospital
 
@@ -122,12 +120,13 @@ rm -rf .next && npm run dev
 - **Phase 0** – Setup: Repo, environment configuration ✅ COMPLETE
 - **Phase 1** – Core UI: React components, watercolor design system ✅ COMPLETE
 - **Phase 2** – AI pipeline: OpenAI gpt-image-1 generation, return PNG ✅ COMPLETE
-- **Phase 3** – MVP Flow: Photo upload → AI generation → download (anonymous users) ✅ COMPLETE
+- **Phase 3** – Auth-First Implementation: Auth-required flow, remove anonymous logic ✅ COMPLETE
 - **Phase 4** – Auth & Credit System: Supabase Auth, credit management, donation flow ✅ COMPLETE
 - **Phase 5** – Payments: Stripe Checkout, webhook processing ✅ COMPLETE
-- **Phase 6** – User Dashboard: Saved pages, credit management
-- **Phase 7** – PDF Export: pdf-kit generation for authenticated users
-- **Phase 8** – Advanced Features: Difficulty slider, regeneration options
+- **Phase 6** – User Dashboard: Saved pages, credit management ✅ COMPLETE
+- **Phase 7** – Observability Integration: ProgressiveLogger with business intelligence ✅ COMPLETE
+- **Phase 8** – PDF Export: pdf-kit generation for authenticated users
+- **Phase 9** – Advanced Features: Difficulty slider, regeneration options
 - **Phase 9** – Rate Limiting: Upstash Redis, abuse prevention
 - **Phase 10** – Hardening: Load test (k6), security pen-test, performance audits
 - **Phase 11** – Launch: Prod env, runbook, status page
@@ -292,9 +291,9 @@ Supabase Storage:
 ```
 
 **Storage Features**:
-- **Automatic File Association**: Anonymous uploads can be moved to user folders on signup
-- **RLS Security**: Public folder for anonymous access, user folders protected by RLS
-- **Service Role Management**: Backend can manage public files for anonymous users
+- **Auth-Required Uploads**: All uploads require authentication with user-specific folders
+- **RLS Security**: User folders protected by RLS policies based on auth.uid()
+- **Service Role Management**: Backend can manage files for authenticated users
 
 ## Database Schema
 ```sql
@@ -346,9 +345,11 @@ donations (
 
 ## Performance & Monitoring
 - **Performance Benchmark**: End-to-end user experience within 30 seconds per image generation
-- **Monitoring**: OpenTelemetry + Grafana Cloud, Vercel Analytics
+- **Business Intelligence**: ProgressiveLogger tracks all generations with costs, timings, and success rates
+- **Database Logging**: `generation_logs` table captures user behavior, performance metrics, and errors
+- **Monitoring**: Real-time observability with Supabase analytics, optional Datadog integration
 - **Slack alerts**: downtime, errors, queue latency
-- **Analytics**: page load, upload, generation, checkout, difficulty changes
+- **Analytics**: page load, upload, generation, checkout, difficulty changes, cost per user
 
 ## Error Handling UX
 - Photo Upload Error: Clear message + retry

@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
-import { randomBytes } from 'crypto'
 import type { ProgressiveLogger } from './ai/progressive-logger'
 
 // Server-side Supabase client with service role key
@@ -19,196 +18,23 @@ const BUCKET_NAME = 'pages'
 export interface StorageResult {
   path: string
   publicUrl: string
-  nonce?: string // For anonymous uploads that need claiming
 }
 
-/**
- * Upload file for anonymous users to public folder with ownership tracking
- */
-export async function uploadAnonymousFile(
-  file: File,
-  logger?: ProgressiveLogger
-): Promise<StorageResult> {
-  try {
-    const fileName = `${uuidv4()}-${file.name}`
-    const filePath = `public/${fileName}`
-    const nonce = randomBytes(32).toString('hex')
-    
-    if (logger) {
-      logger.updateStorageProgress('Uploading to public storage', `${Math.round(file.size / 1024)}KB`);
-    }
+// Whitelist of allowed content types for security
+const ALLOWED_CONTENT_TYPES = [
+  'image/jpeg',
+  'image/jpg', 
+  'image/png',
+  'image/webp'
+] as const
 
-    const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      })
-
-    if (error) {
-      console.error('❌ Anonymous storage upload failed:', error)
-      throw new Error(`Anonymous storage upload failed: ${error.message}`)
-    }
-
-    // Record file ownership with nonce
-    const { error: ownershipError } = await supabaseAdmin
-      .from('file_ownership')
-      .insert({
-        file_path: data.path,
-        creation_nonce: nonce
-      })
-
-    if (ownershipError) {
-      console.error('❌ File ownership tracking failed:', ownershipError)
-      // Clean up uploaded file
-      await supabaseAdmin.storage.from(BUCKET_NAME).remove([data.path])
-      throw new Error('Failed to track file ownership')
-    }
-
-    if (logger) {
-      logger.updateStorageProgress('Generating public URL');
-    }
-
-    // Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(data.path)
-
-    return {
-      path: data.path,
-      publicUrl: publicUrlData.publicUrl,
-      nonce // Return nonce for claiming later
-    }
-  } catch (error) {
-    console.error('❌ Anonymous storage error:', error)
-    throw new Error('Failed to save file to storage')
-  }
-}
+type AllowedContentType = typeof ALLOWED_CONTENT_TYPES[number]
 
 /**
- * Move file from public folder to user folder with ownership verification
+ * Validate that the content type is in our security whitelist
  */
-export async function associateFileWithUser(
-  filePath: string, 
-  userId: string,
-  nonce: string,
-  logger?: ProgressiveLogger
-): Promise<StorageResult> {
-  try {
-    // Verify ownership via nonce
-    const { data: ownership, error: ownershipError } = await supabaseAdmin
-      .from('file_ownership')
-      .select('id, claimed_by')
-      .eq('file_path', filePath)
-      .eq('creation_nonce', nonce)
-      .single()
-
-    if (ownershipError || !ownership) {
-      throw new Error('Invalid ownership proof - file not found or nonce mismatch')
-    }
-
-    if (ownership.claimed_by) {
-      throw new Error('File already claimed by another user')
-    }
-
-    const newPath = filePath.replace('public/', `${userId}/`)
-    
-    if (logger) {
-      logger.updateStorageProgress('Moving file to user folder');
-    }
-
-    // Move the file
-    const { error: moveError } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .move(filePath, newPath)
-
-    if (moveError) {
-      console.error('❌ File association failed:', moveError)
-      throw new Error(`File association failed: ${moveError.message}`)
-    }
-
-    // Update ownership record to mark as claimed
-    const { error: claimError } = await supabaseAdmin
-      .from('file_ownership')
-      .update({
-        claimed_by: userId,
-        claimed_at: new Date().toISOString()
-      })
-      .eq('id', ownership.id)
-
-    if (claimError) {
-      console.error('❌ Ownership claim update failed:', claimError)
-      // File was moved but ownership not updated - this is a partial failure
-      // We could attempt to move it back, but for now just log
-    }
-
-    if (logger) {
-      logger.updateStorageProgress('Generating signed URL for user');
-    }
-
-    // Get public URL for the new path
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(newPath)
-
-    return {
-      path: newPath,
-      publicUrl: publicUrlData.publicUrl
-    }
-  } catch (error) {
-    console.error('❌ File association error:', error)
-    throw new Error('Failed to associate file with user')
-  }
-}
-
-/**
- * Legacy function - Upload to storage (updated for single bucket)
- * @deprecated Use uploadAnonymousFile for new anonymous uploads
- */
-export async function uploadToStorage(
-  buffer: Buffer,
-  path: string,
-  contentType: string = 'image/jpeg',
-  logger?: ProgressiveLogger
-): Promise<StorageResult> {
-  try {
-    // For backward compatibility, upload to public folder if no folder specified
-    const filePath = path.includes('/') ? path : `public/${path}`
-    
-    if (logger) {
-      logger.updateStorageProgress('Uploading to unified storage', `${Math.round(buffer.length / 1024)}KB`);
-    }
-
-    const { data, error } = await supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, buffer, {
-        contentType,
-        cacheControl: '3600',
-        upsert: false
-      })
-
-    if (error) {
-      console.error('❌ Storage upload failed:', error)
-      throw new Error(`Storage upload failed: ${error.message}`)
-    }
-
-    if (logger) {
-      logger.updateStorageProgress('Generating public URL');
-    }
-
-    // Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(data.path)
-
-    return {
-      path: data.path,
-      publicUrl: publicUrlData.publicUrl
-    }
-  } catch (error) {
-    console.error('❌ Storage error:', error)
-    throw new Error('Failed to save image to storage')
-  }
+function validateContentType(contentType: string): contentType is AllowedContentType {
+  return ALLOWED_CONTENT_TYPES.includes(contentType as AllowedContentType)
 }
 
 /**
@@ -223,6 +49,11 @@ export async function uploadUserImage(
 ): Promise<StorageResult> {
   const path = `${userId}/${filename}`
   
+  // Security: Validate content type against whitelist
+  if (!validateContentType(contentType)) {
+    throw new Error(`Invalid content type: ${contentType}. Allowed types: ${ALLOWED_CONTENT_TYPES.join(', ')}`)
+  }
+  
   try {
     if (logger) {
       logger.updateStorageProgress('Uploading to user storage', `${Math.round(buffer.length / 1024)}KB`);
@@ -233,7 +64,7 @@ export async function uploadUserImage(
       .upload(path, buffer, {
         contentType,
         cacheControl: '3600',
-        upsert: false
+        upsert: false // Security: Prevent overwriting existing files
       })
 
     if (error) {
@@ -256,12 +87,58 @@ export async function uploadUserImage(
     }
   } catch (error) {
     console.error('❌ User storage error:', error)
-    throw new Error('Failed to save user image to storage')
+    throw new Error('Failed to save image to user storage')
   }
 }
 
-export function generateFilename(prefix: string = 'coloring'): string {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 15)
-  return `${prefix}-${timestamp}-${random}.jpg`
+/**
+ * Generate a secure filename with timestamp and UUID
+ */
+export function generateFilename(prefix: string = 'file'): string {
+  const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  const uuid = uuidv4().slice(0, 8) // First 8 chars of UUID
+  return `${prefix}-${timestamp}-${uuid}.png`
+}
+
+/**
+ * Delete file from storage
+ */
+export async function deleteFile(path: string): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .remove([path])
+
+    if (error) {
+      console.error('❌ File deletion failed:', error)
+      throw new Error(`File deletion failed: ${error.message}`)
+    }
+  } catch (error) {
+    console.error('❌ Delete file error:', error)
+    throw new Error('Failed to delete file')
+  }
+}
+
+/**
+ * Generate signed URL for private access (authenticated downloads)
+ */
+export async function generateSignedUrl(
+  path: string,
+  expiresIn: number = 3600 // 1 hour
+): Promise<string> {
+  try {
+    const { data, error } = await supabaseAdmin.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(path, expiresIn)
+
+    if (error) {
+      console.error('❌ Signed URL generation failed:', error)
+      throw new Error(`Signed URL generation failed: ${error.message}`)
+    }
+
+    return data.signedUrl
+  } catch (error) {
+    console.error('❌ Generate signed URL error:', error)
+    throw new Error('Failed to generate signed URL')
+  }
 }

@@ -10,11 +10,11 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // Fetch user's pages AND unclaimed pages with claim tokens (for debugging)
+  // Fetch user's pages
   const { data: pages } = await supabase
     .from('pages')
     .select('*')
-    .or(`user_id.eq.${user.id},and(user_id.is.null,claim_token.not.is.null)`)
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
   return (

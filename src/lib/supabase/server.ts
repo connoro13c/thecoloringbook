@@ -32,7 +32,7 @@ export async function createClient() {
 
 /**
  * Create a service role client that bypasses RLS
- * Use this for admin operations or anonymous user data
+ * Use this for admin operations
  */
 export function createServiceClient() {
   const supabaseUrl = getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL').trim()

@@ -3,20 +3,19 @@ import type { PhotoAnalysis } from '@/types'
 
 export interface PageRecord {
   id: string
-  user_id?: string
+  user_id: string
   prompt: string
   style: string
   difficulty: number
   jpg_path?: string
   pdf_path?: string
   analysis_output?: PhotoAnalysis
-  claim_token?: string
   created_at: string
   updated_at: string
 }
 
 export interface CreatePageData {
-  user_id?: string
+  user_id: string
   prompt: string
   style: string
   difficulty: number
@@ -26,12 +25,12 @@ export interface CreatePageData {
 }
 
 /**
- * Create a new page record with analysis output for debugging
- * Uses service role to bypass RLS for anonymous users
+ * Create a new page record with analysis output
+ * Requires authenticated user
  */
 export async function createPage(data: CreatePageData): Promise<PageRecord> {
-  // Use service role client to bypass RLS for anonymous users
-  const supabase = createServiceClient()
+  // Use regular client since user is authenticated
+  const supabase = await createClient()
 
   const { data: page, error } = await supabase
     .from('pages')

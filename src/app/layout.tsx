@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import '../styles/coloring-image.css'
+import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
 
 export const metadata: Metadata = {
   title: 'The Coloring Book - Personalized AI Coloring Pages',
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <LayoutWrapper>
+          {children}
+        </LayoutWrapper>
       </body>
     </html>
   )

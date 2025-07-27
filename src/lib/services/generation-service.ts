@@ -22,9 +22,9 @@ export class GenerationService {
   /**
    * Main orchestration method for generating a coloring page
    */
-  static async generateColoringPage(request: GenerationRequest): Promise<GenerationResponse> {
-    // Use progressive logger for real-time CLI UX
-    const logger = new ProgressiveLogger()
+  static async generateColoringPage(request: GenerationRequest, user: { id: string }): Promise<GenerationResponse> {
+    // Use progressive logger for real-time CLI UX with user tracking
+    const logger = new ProgressiveLogger(user.id)
     
     try {
       console.log('🚀 Starting generation with request:', {
@@ -36,9 +36,7 @@ export class GenerationService {
       })
       // Extract base64 data from data URL
       const base64Data = request.photo.replace(/^data:image\/[a-z]+;base64,/, '')
-      console.log('📷 Photo data - Original length:', request.photo.length)
       console.log('📷 Photo data - Base64 length:', base64Data.length)
-      console.log('📷 Photo data - Starts with:', request.photo.substring(0, 50))
       
       // Start job logging
       logger.startJob({
@@ -67,7 +65,7 @@ export class GenerationService {
       console.log('✅ Image generation complete')
       
       // Step 4: Store image
-      const storageResult = await this.storeImage(generationResult.imageUrl, logger)
+      const storageResult = await this.storeImage(generationResult.imageUrl, user, logger)
       
       // Step 5: Save to database
       console.log('🗄️ Saving to database:', {
@@ -84,7 +82,7 @@ export class GenerationService {
         difficulty: request.difficulty,
         jpgPath: storageResult.path,
         analysisOutput: photoAnalysis
-      }, logger)
+      }, user, logger)
       
       // Add all collected data to tiered logger
       this.addVisionDataToLogger(logger, photoAnalysis)
@@ -102,7 +100,6 @@ export class GenerationService {
           analysis: photoAnalysis,
           prompt: dallePrompt,
           revisedPrompt: generationResult.revisedPrompt,
-          claimToken: pageRecord.claim_token,
           metadata: {
             style: request.style,
             difficulty: request.difficulty,
@@ -157,66 +154,20 @@ export class GenerationService {
   /**
    * Step 4: Download and store image
    */
-  private static async storeImage(imageUrl: string, logger: ProgressiveLogger) {
+  private static async storeImage(imageUrl: string, user: { id: string }, logger: ProgressiveLogger) {
     logger.updateStorageProgress('Converting image to buffer');
     const imageBuffer = await downloadImage(imageUrl)
     
-    // Check if user is authenticated
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
     const filename = generateFilename('coloring')
     
-    let storageResult;
-    if (user) {
-      // For authenticated users, upload directly to their folder
-      logger.updateStorageProgress('Uploading to user storage');
-      storageResult = await uploadUserImage(imageBuffer, user.id, filename, 'image/png', logger)
-    } else {
-      // For anonymous users, upload to public folder using legacy method
-      // (since uploadAnonymousFile expects File objects from frontend)
-      logger.updateStorageProgress('Uploading to public storage');
-      storageResult = await this.uploadBufferToPublic(imageBuffer, filename)
-    }
+    // Upload directly to user's folder - no anonymous handling
+    logger.updateStorageProgress('Uploading to user storage');
+    const storageResult = await uploadUserImage(imageBuffer, user.id, filename, 'image/png', logger)
     
     return storageResult
   }
 
-  /**
-   * Helper: Upload buffer to public folder for anonymous users
-   */
-  private static async uploadBufferToPublic(buffer: Buffer, filename: string) {
-    const { createClient } = await import('@supabase/supabase-js')
-    
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
-    
-    const filePath = `public/${filename}`
-    
-    const { data, error } = await supabaseAdmin.storage
-      .from('pages')
-      .upload(filePath, buffer, {
-        contentType: 'image/png',
-        cacheControl: '3600',
-        upsert: false
-      })
 
-    if (error) {
-      console.error('❌ Anonymous storage upload failed:', error)
-      throw new Error(`Anonymous storage upload failed: ${error.message}`)
-    }
-
-    // Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from('pages')
-      .getPublicUrl(data.path)
-
-    return {
-      path: data.path,
-      publicUrl: publicUrlData.publicUrl
-    }
-  }
 
   /**
    * Step 5: Save page record to database
@@ -227,15 +178,11 @@ export class GenerationService {
     difficulty: number
     jpgPath: string
     analysisOutput: PhotoAnalysisResult
-  }, logger: ProgressiveLogger) {
+  }, user: { id: string }, logger: ProgressiveLogger) {
     logger.updateStorageProgress('Saving to database');
     
-    // Get current user if authenticated
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
     console.log('📝 Creating page with params:', {
-      user_id: user?.id,
+      user_id: user.id,
       promptLength: params.prompt.length,
       style: params.style,
       difficulty: params.difficulty,
@@ -244,7 +191,7 @@ export class GenerationService {
     })
     
     const pageRecord = await createPage({
-      user_id: user?.id,
+      user_id: user.id,
       prompt: params.prompt,
       style: params.style,
       difficulty: params.difficulty,
@@ -389,5 +336,5 @@ export class GenerationService {
   }
 }
 
-// Export static method for testing
+// Export static method for testing (note: now requires user parameter)
 export const generateColoringPage = GenerationService.generateColoringPage

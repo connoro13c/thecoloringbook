@@ -37,17 +37,19 @@ export interface JobContext {
 }
 
 export class ProgressiveLogger {
-  private context: Partial<JobContext> = {};
+  public context: Partial<JobContext> = {};
   private startTime: number = 0;
   private stepTimes: { [key: string]: number } = {};
   private jobId: number;
+  private userId?: string;
   private currentSpinner?: { text: string; succeed: (text: string) => void; fail: (text: string) => void };
   private visionSteps: string[] = [];
   private imageSteps: string[] = [];
   private storageSteps: string[] = [];
 
-  constructor() {
+  constructor(userId?: string) {
     this.jobId = Math.floor(Math.random() * 9999) + 1000;
+    this.userId = userId;
   }
 
   /**
@@ -227,6 +229,9 @@ export class ProgressiveLogger {
     // Output details section
     this.outputDetailsSection(this.context as JobContext);
     this.outputProgressDetails();
+    
+    // Send metrics to observability sink
+    this.sendToObservabilitySink();
   }
 
   /**
@@ -245,6 +250,9 @@ export class ProgressiveLogger {
       console.error('    Error details:', error);
     }
     console.error(bar);
+
+    // Send error to observability sink
+    this.sendErrorToObservabilitySink(message, error);
   }
 
   /**
@@ -329,5 +337,159 @@ export class ProgressiveLogger {
    */
   getJobId(): number {
     return this.jobId;
+  }
+
+  /**
+   * Send error to observability sink
+   */
+  private async sendErrorToObservabilitySink(message: string, error?: unknown): Promise<void> {
+    try {
+      // Only send in production or when explicitly enabled
+      if (process.env.NODE_ENV !== 'production' && !process.env.ENABLE_OBSERVABILITY_LOGGING) {
+        return;
+      }
+
+      const errorMessage = error instanceof Error ? error.message : String(error || message);
+      
+      const logEntry = {
+        user_id: this.userId,
+        job_id: this.jobId.toString(),
+        style: this.context.style || null,
+        difficulty: this.context.difficulty || null,
+        duration_ms: Date.now() - this.startTime,
+        costs: {
+          vision: this.context.costs?.vision || 0,
+          image: this.context.costs?.image || 0,
+          total: (this.context.costs?.vision || 0) + (this.context.costs?.image || 0)
+        },
+        tokens: {
+          vision_input: this.context.tokens?.vision?.input || 0,
+          vision_output: this.context.tokens?.vision?.output || 0,
+          image_input: this.context.tokens?.image?.input || 0,
+          image_output: this.context.tokens?.image?.output || 0
+        },
+        success: false,
+        error_message: errorMessage
+      };
+
+      // Send to Supabase for business intelligence
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await this.sendToSupabase(logEntry);
+      }
+
+      // Optionally send to other observability platforms
+      if (process.env.DATADOG_API_KEY) {
+        await this.sendToDatadog(logEntry);
+      }
+
+    } catch (observabilityError) {
+      console.warn('Failed to send error observability data:', observabilityError);
+    }
+  }
+
+  /**
+   * Send metrics to observability sink for business intelligence
+   */
+  private async sendToObservabilitySink(): Promise<void> {
+    try {
+      // Only send in production or when explicitly enabled
+      if (process.env.NODE_ENV !== 'production' && !process.env.ENABLE_OBSERVABILITY_LOGGING) {
+        return;
+      }
+
+      const logEntry = {
+        user_id: this.userId,
+        job_id: this.jobId.toString(),
+        style: this.context.style,
+        difficulty: this.context.difficulty,
+        duration_ms: this.context.timing,
+        costs: {
+          vision: this.context.costs?.vision || 0,
+          image: this.context.costs?.image || 0,
+          total: this.context.costs?.total || 0
+        },
+        tokens: {
+          vision_input: this.context.tokens?.vision?.input || 0,
+          vision_output: this.context.tokens?.vision?.output || 0,
+          image_input: this.context.tokens?.image?.input || 0,
+          image_output: this.context.tokens?.image?.output || 0
+        },
+        success: true,
+        error_message: null
+      };
+
+      // Send to Supabase for business intelligence
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await this.sendToSupabase(logEntry);
+      }
+
+      // Optionally send to other observability platforms
+      if (process.env.DATADOG_API_KEY) {
+        await this.sendToDatadog(logEntry);
+      }
+
+    } catch (error) {
+      // Don't fail the main request if observability fails
+      console.warn('Failed to send observability data:', error);
+    }
+  }
+
+  /**
+   * Send metrics to Supabase generation_logs table
+   */
+  private async sendToSupabase(logEntry: any): Promise<void> {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      const { error } = await supabase
+        .from('generation_logs')
+        .insert([logEntry]);
+
+      if (error) {
+        console.warn('Failed to insert generation log:', error);
+      }
+    } catch (error) {
+      console.warn('Supabase logging error:', error);
+    }
+  }
+
+  /**
+   * Send metrics to Datadog (optional)
+   */
+  private async sendToDatadog(logEntry: any): Promise<void> {
+    try {
+      // Example implementation for Datadog metrics
+      const response = await fetch('https://api.datadoghq.com/api/v1/series', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'DD-API-KEY': process.env.DATADOG_API_KEY!
+        },
+        body: JSON.stringify({
+          series: [
+            {
+              metric: 'coloring_book.generation.duration',
+              points: [[Math.floor(Date.now() / 1000), logEntry.duration_ms]],
+              tags: [`style:${logEntry.style}`, `difficulty:${logEntry.difficulty}`]
+            },
+            {
+              metric: 'coloring_book.generation.cost',
+              points: [[Math.floor(Date.now() / 1000), logEntry.costs.total]],
+              tags: [`style:${logEntry.style}`, `difficulty:${logEntry.difficulty}`]
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('Datadog API error:', response.statusText);
+      }
+    } catch (error) {
+      console.warn('Datadog logging error:', error);
+    }
   }
 }

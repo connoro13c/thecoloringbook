@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getPendingClaims, clearPendingClaims } from '@/lib/utils/pending-claims'
-// import { toast } from 'sonner'
 import { PageRecord } from '@/lib/database'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -44,68 +42,6 @@ function getSceneSummary(prompt: string): string {
 
 export default function DashboardClient({ initialPages, userEmail }: DashboardClientProps) {
   const [pages, setPages] = useState<PageRecord[]>(initialPages)
-  const [isClaimingPages, setIsClaimingPages] = useState(false)
-  
-  useEffect(() => {
-    const processPendingClaims = async () => {
-      try {
-        const pendingClaims = getPendingClaims()
-        
-        if (pendingClaims.length === 0) {
-          return
-        }
-
-        setIsClaimingPages(true)
-        
-        console.log('Processing pending claims:', pendingClaims.length)
-        
-        const response = await fetch('/api/v1/claim-pages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            claims: pendingClaims.map(claim => ({
-              pageId: claim.pageId,
-              claimToken: claim.claimToken
-            }))
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to claim pages')
-        }
-
-        const result = await response.json()
-        
-        if (result.success && result.claimed > 0) {
-          console.log(`Successfully claimed ${result.claimed} pages`)
-          
-          // Clear pending claims from localStorage
-          clearPendingClaims()
-          
-          // Refresh the page list
-          await refreshPages()
-          
-          // Show success message
-          console.log(`✅ Successfully saved ${result.claimed} coloring page${result.claimed > 1 ? 's' : ''} to your account!`)
-        }
-        
-        if (result.failed > 0) {
-          console.warn(`Failed to claim ${result.failed} pages`)
-          // Don't show error toast for failed claims as they might be expected
-        }
-        
-      } catch (error) {
-        console.error('Error processing pending claims:', error)
-        // Don't show error toast to avoid disrupting user experience
-      } finally {
-        setIsClaimingPages(false)
-      }
-    }
-
-    processPendingClaims()
-  }, [])
 
   const refreshPages = async () => {
     try {
@@ -141,11 +77,6 @@ export default function DashboardClient({ initialPages, userEmail }: DashboardCl
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Your Dashboard</h1>
               <p className="text-gray-600 mt-2">Welcome back, {userEmail}!</p>
-              {isClaimingPages && (
-                <p className="text-sm text-blue-600 mt-1">
-                  Processing your saved pages...
-                </p>
-              )}
             </div>
             <button
               onClick={handleSignOut}
